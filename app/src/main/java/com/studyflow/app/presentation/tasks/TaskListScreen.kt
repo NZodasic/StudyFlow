@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,13 +32,21 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.studyflow.app.data.local.entity.TaskEntity
 import com.studyflow.app.data.local.entity.WorkspaceEntity
-import com.studyflow.app.ui.components.EmptyStateView
-import com.studyflow.app.ui.components.LoadingIndicator
-import com.studyflow.app.ui.components.PriorityChip
-import com.studyflow.app.ui.theme.StudyFlowTheme
+import com.studyflow.app.ui.components.*
+import com.studyflow.app.ui.theme.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.border
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.foundation.isSystemInDarkTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -271,7 +280,8 @@ fun TaskListScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         EmptyStateView(
-                            message = "No Tasks Found\nTry searching for something else or add a new task to get started."
+                            message = "No Tasks Found\nTry searching for something else or add a new task to get started.",
+                            icon = Icons.Default.List
                         )
                     }
                 } else {
@@ -460,160 +470,208 @@ fun TaskCard(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "task_list_card_scale"
+    )
+    val isDark = isSystemInDarkTheme()
+    val priorityColor = when (task.priority) {
+        0 -> EmeraldGreen // Low
+        1 -> PeakPrimary  // Medium
+        else -> VibrantRed // High
+    }
+
     Card(
+        onClick = onClick,
+        interactionSource = interactionSource,
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .graphicsLayer(scaleX = scale, scaleY = scale)
+            .shadow(
+                elevation = if (isPressed) 2.dp else 6.dp,
+                shape = RoundedCornerShape(16.dp),
+                clip = false,
+                ambientColor = priorityColor.copy(alpha = 0.05f),
+                spotColor = priorityColor.copy(alpha = 0.12f)
+            ),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (task.isCompleted) {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            }
-        )
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(IntrinsicSize.Min),
-            verticalAlignment = Alignment.CenterVertically
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.85f else 0.95f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.6f else 0.8f)
+                        )
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = if (isDark) 0.12f else 0.35f),
+                            Color.White.copy(alpha = if (isDark) 0.04f else 0.1f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                )
         ) {
-            // Left priority indicator bar
-            val indicatorColor = when (task.priority) {
-                0 -> MaterialTheme.colorScheme.primaryContainer
-                1 -> MaterialTheme.colorScheme.secondary
-                else -> MaterialTheme.colorScheme.error
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(6.dp)
-                    .background(indicatorColor)
-            )
-
             Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Checkbox(
-                    checked = task.isCompleted,
-                    onCheckedChange = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onToggleComplete()
-                    }
+                // Left priority indicator bar (gradient and rounded)
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(6.dp)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(priorityColor, priorityColor.copy(alpha = 0.5f))
+                            ),
+                            shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                        )
                 )
 
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = task.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
-                        color = if (task.isCompleted) {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = task.isCompleted,
+                        onCheckedChange = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onToggleComplete()
+                        },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = MaterialTheme.colorScheme.primary,
+                            uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        ),
+                        modifier = Modifier.scale(0.95f)
                     )
 
-                    if (task.description.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = task.description,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            maxLines = 2
+                            text = task.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
+                            color = if (task.isCompleted) {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            }
                         )
-                    }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    val workspace = workspaces.find { it.id == task.workspaceId }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        PriorityChip(priority = task.priority)
-                        
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
+                        if (task.description.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = task.category,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary,
-                                fontWeight = FontWeight.Bold
+                                text = task.description,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                maxLines = 2
                             )
                         }
 
-                        workspace?.let { ws ->
-                            val wsColor = try {
-                                Color(android.graphics.Color.parseColor(ws.colorHex))
-                            } catch (e: Exception) {
-                                MaterialTheme.colorScheme.primary
-                            }
-                            Row(
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        val workspace = workspaces.find { it.id == task.workspaceId }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PriorityChip(priority = task.priority)
+
+                            Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(wsColor.copy(alpha = 0.15f))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(wsColor)
-                                )
                                 Text(
-                                    text = "${ws.iconEmoji} ${ws.name}",
+                                    text = task.category,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = wsColor,
+                                    color = MaterialTheme.colorScheme.secondary,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                        }
 
-                        task.dueDateMillis?.let { due ->
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                text = formatDueDate(due),
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (due < System.currentTimeMillis() && !task.isCompleted) {
-                                    MaterialTheme.colorScheme.error
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            workspace?.let { ws ->
+                                val wsColor = try {
+                                    Color(android.graphics.Color.parseColor(ws.colorHex))
+                                } catch (e: Exception) {
+                                    MaterialTheme.colorScheme.primary
                                 }
-                            )
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(wsColor.copy(alpha = 0.15f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(wsColor)
+                                    )
+                                    Text(
+                                        text = "${ws.iconEmoji} ${ws.name}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = wsColor,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            task.dueDateMillis?.let { due ->
+                                Spacer(modifier = Modifier.weight(1f))
+                                Text(
+                                    text = formatDueDate(due),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (due < System.currentTimeMillis() && !task.isCompleted) {
+                                        VibrantRed
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            // Visible delete button on the card
-            if (onDelete != null) {
-                IconButton(
-                    onClick = { onDelete() },
-                    modifier = Modifier
-                        .padding(end = 4.dp)
-                        .size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete task",
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                        modifier = Modifier.size(18.dp)
-                    )
+                // Visible delete button on the card
+                if (onDelete != null) {
+                    IconButton(
+                        onClick = { onDelete() },
+                        modifier = Modifier
+                            .padding(end = 4.dp)
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete task",
+                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }

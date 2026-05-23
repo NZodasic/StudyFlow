@@ -1,15 +1,55 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# Gradle build files and directory
+.gradle/
+/build/
+/*/build/
+/app/build/
+.gradle-user-home/
+
+# Local developer overrides
 local.properties
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/assetWizardSettings.xml
+.idea/dictionaries
+.idea/libraries
+.idea/caches
+.idea/navEditor.xml
+.idea/jsLibraryMappings.xml
+.idea/shelf
+.idea/copilot
+
+# Keystores & sensitive credentials
+*.jks
+*.keystore
+*.pkcs12
+*.p12
+*.pem
+google-services.json
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Kotlin & C++ build caching
+.kotlin/
+.cxx/
+.externalNativeBuild/
+captures/
+
+# Logs & temp files
+*.log
+*~
+*.bak
+*.swp
+
+# Local AI agent caches
+.agents/
+.sixth/

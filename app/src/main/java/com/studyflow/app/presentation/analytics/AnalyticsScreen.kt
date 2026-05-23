@@ -2,14 +2,21 @@ package com.studyflow.app.presentation.analytics
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -49,30 +56,106 @@ fun AnalyticsScreen(
         if (uiState.isLoading) {
             LoadingIndicator()
         } else {
+            val isDark = isSystemInDarkTheme()
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                TabRow(
-                    selectedTabIndex = selectedTab,
-                    containerColor = MaterialTheme.colorScheme.background,
-                    contentColor = MaterialTheme.colorScheme.primary
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Obsidian Glassmorphic Tab Selector
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = if (isDark) {
+                                    listOf(
+                                        Color(0xFF1E1E24).copy(alpha = 0.6f),
+                                        Color(0xFF0F0F12).copy(alpha = 0.8f)
+                                    )
+                                } else {
+                                    listOf(
+                                        Color(0xFFF2F4F7).copy(alpha = 0.8f),
+                                        Color(0xFFE4E7EC).copy(alpha = 0.6f)
+                                    )
+                                }
+                            ),
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.linearGradient(
+                                colors = if (isDark) {
+                                    listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.02f))
+                                } else {
+                                    listOf(Color.Black.copy(alpha = 0.06f), Color.Black.copy(alpha = 0.02f))
+                                }
+                            ),
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                        .padding(4.dp)
                 ) {
-                    tabs.forEachIndexed { index, title ->
-                        Tab(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            selectedContentColor = MaterialTheme.colorScheme.primary,
-                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            text = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        tabs.forEachIndexed { index, title ->
+                            val isSelected = selectedTab == index
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(
+                                        brush = if (isSelected) {
+                                            Brush.verticalGradient(
+                                                colors = if (isDark) {
+                                                    listOf(
+                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)
+                                                    )
+                                                } else {
+                                                    listOf(
+                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
+                                                    )
+                                                }
+                                            )
+                                        } else {
+                                            Brush.linearGradient(colors = listOf(Color.Transparent, Color.Transparent))
+                                        }
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        brush = if (isSelected) {
+                                            Brush.linearGradient(
+                                                colors = listOf(
+                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)
+                                                )
+                                            )
+                                        } else Brush.linearGradient(colors = listOf(Color.Transparent, Color.Transparent)),
+                                        shape = RoundedCornerShape(20.dp)
+                                    )
+                                    .clickable { selectedTab = index }
+                                    .padding(vertical = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Text(
                                     text = title,
                                     style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
+                                    fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    }
                                 )
                             }
-                        )
+                        }
                     }
                 }
 
@@ -92,6 +175,7 @@ fun AnalyticsScreen(
 // 1. Tasks Tab Content
 @Composable
 fun TasksTabContent(uiState: AnalyticsUiState) {
+    val isDark = isSystemInDarkTheme()
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -120,13 +204,44 @@ fun TasksTabContent(uiState: AnalyticsUiState) {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = if (isDark) {
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                    )
+                                } else {
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                    )
+                                }
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = if (isDark) 0.08f else 0.15f),
+                                    Color.White.copy(alpha = if (isDark) 0.03f else 0.05f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .padding(16.dp)
+                ) {
                     Text(
                         text = "Weekly Task Completions",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     AnalyticsBarChart(data = uiState.weeklyTaskCompletions)
@@ -137,13 +252,44 @@ fun TasksTabContent(uiState: AnalyticsUiState) {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = if (isDark) {
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                    )
+                                } else {
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                    )
+                                }
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = if (isDark) 0.08f else 0.15f),
+                                    Color.White.copy(alpha = if (isDark) 0.03f else 0.05f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .padding(16.dp)
+                ) {
                     Text(
                         text = "Task Category Distribution",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     if (uiState.taskCategoryCounts.isEmpty()) {
@@ -176,6 +322,7 @@ fun TasksTabContent(uiState: AnalyticsUiState) {
 // 2. Habits Tab Content
 @Composable
 fun HabitsTabContent(uiState: AnalyticsUiState) {
+    val isDark = isSystemInDarkTheme()
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -185,11 +332,37 @@ fun HabitsTabContent(uiState: AnalyticsUiState) {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = if (isDark) {
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                    )
+                                } else {
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                    )
+                                }
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = if (isDark) 0.08f else 0.15f),
+                                    Color.White.copy(alpha = if (isDark) 0.03f else 0.05f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(20.dp)
+                        )
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -197,6 +370,7 @@ fun HabitsTabContent(uiState: AnalyticsUiState) {
                         text = "30-Day Completion Heatmap",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.align(Alignment.Start)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -218,29 +392,66 @@ fun HabitsTabContent(uiState: AnalyticsUiState) {
             item {
                 EmptyStateView(
                     message = "Track active habits to build streaks and view completion rates.",
-                    iconEmoji = "⭐"
+                    icon = Icons.Default.Star
                 )
             }
         } else {
             items(uiState.habits) { habit ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = if (isDark) {
+                                        listOf(
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.12f)
+                                        )
+                                    } else {
+                                        listOf(
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                                        )
+                                    }
+                                )
+                            )
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = if (isDark) 0.06f else 0.12f),
+                                        Color.White.copy(alpha = if (isDark) 0.02f else 0.04f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(16.dp)
+                            )
                             .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = habit.iconEmoji, fontSize = 24.sp)
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(
+                                        if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.04f),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = habit.iconEmoji, fontSize = 22.sp)
+                            }
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = habit.name,
                                 style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -248,26 +459,26 @@ fun HabitsTabContent(uiState: AnalyticsUiState) {
                                 Text(
                                     text = "🔥 ${habit.currentStreak}",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.Black,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
                                     text = "Current",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                                 )
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     text = "🏆 ${habit.bestStreak}",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.Black,
                                     color = MaterialTheme.colorScheme.secondary
                                 )
                                 Text(
                                     text = "Best",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                                 )
                             }
                         }
@@ -284,6 +495,7 @@ fun HabitsTabContent(uiState: AnalyticsUiState) {
 // 3. Pomodoro Tab Content
 @Composable
 fun PomodoroTabContent(uiState: AnalyticsUiState) {
+    val isDark = isSystemInDarkTheme()
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -311,13 +523,44 @@ fun PomodoroTabContent(uiState: AnalyticsUiState) {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = if (isDark) {
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                    )
+                                } else {
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                    )
+                                }
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = if (isDark) 0.08f else 0.15f),
+                                    Color.White.copy(alpha = if (isDark) 0.03f else 0.05f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .padding(16.dp)
+                ) {
                     Text(
                         text = "Focus Sessions (Current Week)",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     AnalyticsBarChart(data = uiState.weeklyPomodoroSessions)
@@ -333,6 +576,7 @@ fun PomodoroTabContent(uiState: AnalyticsUiState) {
 // 4. Performance Signals Tab Content
 @Composable
 fun ResourcesTabContent(uiState: AnalyticsUiState) {
+    val isDark = isSystemInDarkTheme()
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -351,7 +595,7 @@ fun ResourcesTabContent(uiState: AnalyticsUiState) {
                 )
                 AnalyticsStatCard(
                     title = "Top Category",
-                    value = uiState.biggestResourceCategory,
+                    value = uiState.biggestResourceCategory.ifBlank { "None" },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -360,13 +604,44 @@ fun ResourcesTabContent(uiState: AnalyticsUiState) {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = if (isDark) {
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                    )
+                                } else {
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                    )
+                                }
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = if (isDark) 0.08f else 0.15f),
+                                    Color.White.copy(alpha = if (isDark) 0.03f else 0.05f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .padding(16.dp)
+                ) {
                     Text(
                         text = "Monthly Signal Trend",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     ResourceTrendLineChart(points = uiState.last6MonthsResourceTrend)
@@ -377,13 +652,44 @@ fun ResourcesTabContent(uiState: AnalyticsUiState) {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = if (isDark) {
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                                    )
+                                } else {
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                    )
+                                }
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = if (isDark) 0.08f else 0.15f),
+                                    Color.White.copy(alpha = if (isDark) 0.03f else 0.05f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .padding(16.dp)
+                ) {
                     Text(
                         text = "Signal Categories",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     if (uiState.resourceCategoryTotals.isEmpty()) {
@@ -420,18 +726,48 @@ fun AnalyticsStatCard(
     value: String,
     modifier: Modifier = Modifier
 ) {
+    val isDark = isSystemInDarkTheme()
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = if (isDark) {
+                            listOf(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                            )
+                        } else {
+                            listOf(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            )
+                        }
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = if (isDark) 0.08f else 0.15f),
+                            Color.White.copy(alpha = if (isDark) 0.03f else 0.05f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .padding(16.dp),
             horizontalAlignment = Alignment.Start
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -447,9 +783,11 @@ fun AnalyticsStatCard(
 // Subcomponents: Bar Chart
 @Composable
 fun AnalyticsBarChart(data: List<Int>) {
-    val barColor = MaterialTheme.colorScheme.primary
-    val gridColor = MaterialTheme.colorScheme.surfaceVariant
+    val isDark = isSystemInDarkTheme()
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val trackColor = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.04f)
 
     val labels = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
 
@@ -460,43 +798,47 @@ fun AnalyticsBarChart(data: List<Int>) {
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val maxVal = data.maxOrNull() ?: 0
-            val ceiling = if (maxVal <= 0) 5f else maxVal.toFloat() * 1.1f
+            val ceiling = if (maxVal <= 0) 5f else maxVal.toFloat() * 1.15f
 
             val availableWidth = size.width
             val availableHeight = size.height
             val barWidth = 20.dp.toPx()
             val spacing = (availableWidth - (barWidth * 7)) / 8
 
-            // Grid lines
-            val gridLines = 3
-            for (i in 0 until gridLines) {
-                val y = (availableHeight / gridLines) * i
-                drawLine(
-                    color = gridColor,
-                    start = Offset(0f, y),
-                    end = Offset(availableWidth, y),
-                    strokeWidth = 1.dp.toPx()
-                )
-            }
-
-            // Draw Bars
+            // Draw tracks and bars
             for (i in 0 until 7) {
                 val value = data.getOrElse(i) { 0 }.toFloat()
                 val heightRatio = value / ceiling
                 val barHeight = availableHeight * heightRatio
                 val x = spacing + i * (barWidth + spacing)
-                val y = availableHeight - barHeight
 
+                // Track
                 drawRoundRect(
-                    color = barColor,
-                    topLeft = Offset(x, y),
-                    size = Size(barWidth, barHeight),
-                    cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                    color = trackColor,
+                    topLeft = Offset(x, 0f),
+                    size = Size(barWidth, availableHeight),
+                    cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
                 )
+
+                // Bar
+                if (barHeight > 0f) {
+                    val y = availableHeight - barHeight
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                secondaryColor,
+                                primaryColor
+                            )
+                        ),
+                        topLeft = Offset(x, y),
+                        size = Size(barWidth, barHeight),
+                        cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
+                    )
+                }
             }
         }
     }
-    Spacer(modifier = Modifier.height(4.dp))
+    Spacer(modifier = Modifier.height(8.dp))
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceAround
@@ -504,8 +846,8 @@ fun AnalyticsBarChart(data: List<Int>) {
         labels.forEach { label ->
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
-                color = labelColor,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                color = labelColor.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.width(32.dp)
             )
@@ -532,9 +874,11 @@ fun ResourceTrendLineChart(points: List<Pair<String, Double>>) {
         return
     }
 
+    val isDark = isSystemInDarkTheme()
     val primaryColor = MaterialTheme.colorScheme.primary
-    val gridColor = MaterialTheme.colorScheme.surfaceVariant
+    val secondaryColor = MaterialTheme.colorScheme.secondary
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val gridColor = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f)
 
     Box(
         modifier = Modifier
@@ -568,22 +912,6 @@ fun ResourceTrendLineChart(points: List<Pair<String, Double>>) {
                 Offset(x, y)
             }
 
-            // Draw line connecting points
-            val linePath = Path().apply {
-                if (coordinates.isNotEmpty()) {
-                    moveTo(coordinates.first().x, coordinates.first().y)
-                    for (i in 1 until coordinates.size) {
-                        lineTo(coordinates[i].x, coordinates[i].y)
-                    }
-                }
-            }
-
-            drawPath(
-                path = linePath,
-                color = primaryColor,
-                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
-            )
-
             // Draw gradient fill under the line
             if (coordinates.isNotEmpty()) {
                 val fillPath = Path().apply {
@@ -599,23 +927,55 @@ fun ResourceTrendLineChart(points: List<Pair<String, Double>>) {
                 drawPath(
                     path = fillPath,
                     brush = Brush.verticalGradient(
-                        colors = listOf(primaryColor.copy(alpha = 0.25f), Color.Transparent)
+                        colors = listOf(
+                            primaryColor.copy(alpha = 0.35f),
+                            secondaryColor.copy(alpha = 0.05f),
+                            Color.Transparent
+                        )
                     )
                 )
             }
 
-            // Draw circles on points
+            // Draw line connecting points
+            val linePath = Path().apply {
+                if (coordinates.isNotEmpty()) {
+                    moveTo(coordinates.first().x, coordinates.first().y)
+                    for (i in 1 until coordinates.size) {
+                        lineTo(coordinates[i].x, coordinates[i].y)
+                    }
+                }
+            }
+
+            drawPath(
+                path = linePath,
+                brush = Brush.horizontalGradient(
+                    colors = listOf(primaryColor, secondaryColor)
+                ),
+                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+            )
+
+            // Draw halo circles on points
             coordinates.forEach { coord ->
                 drawCircle(
-                    color = primaryColor,
+                    color = primaryColor.copy(alpha = 0.25f),
+                    radius = 8.dp.toPx(),
+                    center = coord
+                )
+                drawCircle(
+                    color = secondaryColor,
                     radius = 4.dp.toPx(),
+                    center = coord
+                )
+                drawCircle(
+                    color = Color.White,
+                    radius = 2.dp.toPx(),
                     center = coord
                 )
             }
         }
     }
 
-    Spacer(modifier = Modifier.height(4.dp))
+    Spacer(modifier = Modifier.height(8.dp))
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -624,10 +984,10 @@ fun ResourceTrendLineChart(points: List<Pair<String, Double>>) {
         points.forEach { point ->
             Text(
                 text = point.first,
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
-                color = labelColor,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                color = labelColor.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
-                modifier = Modifier.width(36.dp)
+                modifier = Modifier.width(42.dp)
             )
         }
     }
@@ -656,7 +1016,7 @@ fun HabitHeatmapGrid(heatmapData: Map<Long, Int>) {
     val gridRows = 5
     val gridCols = 6
     val primaryColor = MaterialTheme.colorScheme.primary
-    val emptyColor = MaterialTheme.colorScheme.surfaceVariant
+    val secondaryColor = MaterialTheme.colorScheme.secondary
 
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -669,17 +1029,35 @@ fun HabitHeatmapGrid(heatmapData: Map<Long, Int>) {
                     val dateMillis = dates.getOrNull(idx)
 
                     val count = if (dateMillis != null) heatmapData[dateMillis] ?: 0 else 0
-                    val color = when {
-                        count <= 0 -> emptyColor
-                        count == 1 -> primaryColor.copy(alpha = 0.3f)
-                        count == 2 -> primaryColor.copy(alpha = 0.6f)
-                        else -> primaryColor
+                    val isDark = isSystemInDarkTheme()
+                    val emptyColor = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f)
+
+                    val brush = when {
+                        count <= 0 -> Brush.linearGradient(listOf(emptyColor, emptyColor))
+                        count == 1 -> Brush.linearGradient(listOf(primaryColor.copy(alpha = 0.3f), primaryColor.copy(alpha = 0.3f)))
+                        count == 2 -> Brush.linearGradient(listOf(primaryColor.copy(alpha = 0.6f), secondaryColor.copy(alpha = 0.4f)))
+                        else -> Brush.linearGradient(listOf(primaryColor, secondaryColor))
+                    }
+
+                    val borderModifier = if (count > 0) {
+                        Modifier.border(
+                            width = 1.dp,
+                            brush = Brush.linearGradient(listOf(primaryColor.copy(alpha = 0.5f), secondaryColor.copy(alpha = 0.5f))),
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                    } else {
+                        Modifier.border(
+                            width = 1.dp,
+                            color = Color.White.copy(alpha = 0.02f),
+                            shape = RoundedCornerShape(6.dp)
+                        )
                     }
 
                     Box(
                         modifier = Modifier
-                            .size(24.dp)
-                            .background(color = color, shape = RoundedCornerShape(4.dp))
+                            .size(28.dp)
+                            .background(brush = brush, shape = RoundedCornerShape(6.dp))
+                            .then(borderModifier)
                     )
                 }
             }
@@ -689,11 +1067,14 @@ fun HabitHeatmapGrid(heatmapData: Map<Long, Int>) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val isDark = isSystemInDarkTheme()
+            val emptyColor = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f)
+
             Text(text = "Less", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Box(modifier = Modifier.size(12.dp).background(emptyColor, shape = RoundedCornerShape(2.dp)))
-            Box(modifier = Modifier.size(12.dp).background(primaryColor.copy(alpha = 0.3f), shape = RoundedCornerShape(2.dp)))
-            Box(modifier = Modifier.size(12.dp).background(primaryColor.copy(alpha = 0.6f), shape = RoundedCornerShape(2.dp)))
-            Box(modifier = Modifier.size(12.dp).background(primaryColor, shape = RoundedCornerShape(2.dp)))
+            Box(modifier = Modifier.size(14.dp).background(emptyColor, shape = RoundedCornerShape(3.dp)))
+            Box(modifier = Modifier.size(14.dp).background(primaryColor.copy(alpha = 0.3f), shape = RoundedCornerShape(3.dp)).border(1.dp, primaryColor.copy(alpha = 0.3f), RoundedCornerShape(3.dp)))
+            Box(modifier = Modifier.size(14.dp).background(Brush.linearGradient(listOf(primaryColor.copy(alpha = 0.6f), secondaryColor.copy(alpha = 0.4f))), shape = RoundedCornerShape(3.dp)).border(1.dp, primaryColor.copy(alpha = 0.4f), RoundedCornerShape(3.dp)))
+            Box(modifier = Modifier.size(14.dp).background(Brush.linearGradient(listOf(primaryColor, secondaryColor)), shape = RoundedCornerShape(3.dp)).border(1.dp, primaryColor, RoundedCornerShape(3.dp)))
             Text(text = "More", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -706,21 +1087,22 @@ fun DonutChart(categoryValues: Map<String, Double>) {
     if (total <= 0.0) return
 
     val colors = listOf(
-        MaterialTheme.colorScheme.primary,
-        MaterialTheme.colorScheme.secondary,
-        MaterialTheme.colorScheme.tertiary,
-        MaterialTheme.colorScheme.error,
-        MaterialTheme.colorScheme.outline,
-        Color(0xFF7A6A85), // Desaturated Amethyst
-        Color(0xFF5D7A75)  // Desaturated Steel Teal
+        Color(0xFF00D8F6), // Neon Cyan
+        Color(0xFF9061F9), // Neon Violet
+        Color(0xFFFFB703), // Neon Amber
+        Color(0xFFFF5E5E), // Coral Red
+        Color(0xFF10B981), // Emerald Green
+        Color(0xFF4FACFE), // Neon Blue
+        Color(0xFFF35588)  // Neon Pink
     )
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(150.dp),
+            .height(160.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val isDark = isSystemInDarkTheme()
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -728,6 +1110,15 @@ fun DonutChart(categoryValues: Map<String, Double>) {
             contentAlignment = Alignment.Center
         ) {
             Canvas(modifier = Modifier.size(120.dp)) {
+                // Draw single neutral background track
+                drawArc(
+                    color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.05f),
+                    startAngle = 0f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    style = Stroke(width = 14.dp.toPx())
+                )
+
                 var startAngle = -90f
                 categoryValues.entries.forEachIndexed { index, entry ->
                     val sweepAngle = ((entry.value / total) * 360f).toFloat()
@@ -736,9 +1127,9 @@ fun DonutChart(categoryValues: Map<String, Double>) {
                     drawArc(
                         color = color,
                         startAngle = startAngle,
-                        sweepAngle = sweepAngle,
+                        sweepAngle = if (categoryValues.size > 1) (sweepAngle - 4f).coerceAtLeast(1f) else sweepAngle,
                         useCenter = false,
-                        style = Stroke(width = 16.dp.toPx(), cap = StrokeCap.Butt)
+                        style = Stroke(width = 14.dp.toPx(), cap = StrokeCap.Round)
                     )
                     startAngle += sweepAngle
                 }
@@ -757,18 +1148,18 @@ fun DonutChart(categoryValues: Map<String, Double>) {
                 val color = colors.getOrElse(index) { colors.last() }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(vertical = 2.dp)
+                    modifier = Modifier.padding(vertical = 4.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
-                            .background(color = color, shape = RoundedCornerShape(2.dp))
+                            .size(12.dp)
+                            .background(color = color, shape = RoundedCornerShape(3.dp))
+                            .border(width = 1.dp, color = color.copy(alpha = 0.5f), shape = RoundedCornerShape(3.dp))
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "${entry.key} (${String.format(Locale.getDefault(), "%.0f%%", (entry.value / total) * 100)})",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }

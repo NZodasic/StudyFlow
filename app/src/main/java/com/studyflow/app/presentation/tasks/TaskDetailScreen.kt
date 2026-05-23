@@ -411,31 +411,29 @@ private fun TaskFormContent(
         }
 
         // Schedule Time
-        Column {
-            Text("Schedule Time", style = MaterialTheme.typography.titleSmall)
-            Spacer(modifier = Modifier.height(8.dp))
-            Card(
-                onClick = onScheduleTimeClick,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+        if (dueDateMillis != null) {
+            Column {
+                Text("Schedule Time", style = MaterialTheme.typography.titleSmall)
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    onClick = onScheduleTimeClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
-                    Text(
-                        text = if (dueDateMillis != null) {
-                            formatHourLabel(scheduledHour)
-                        } else {
-                            "Pick a due date first"
-                        },
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Icon(imageVector = Icons.Default.AccessTime, contentDescription = "Select Time")
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = formatHourLabel(scheduledHour),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Icon(imageVector = Icons.Default.AccessTime, contentDescription = "Select Time")
+                    }
                 }
             }
         }

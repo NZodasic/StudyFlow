@@ -2,63 +2,66 @@ package com.studyflow.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Neo-Minimal Dark Colors
-val DarkBackground = Color(0xFF111315)
-val DarkSurface = Color(0xFF1A1D21)
-val DarkCard = Color(0xFF20242A)
-val AccentViolet = Color(0xFF8B5CF6)
-val AccentCyan = Color(0xFF06B6D4)
-val EmeraldGreen = Color(0xFF22C55E)
-val VibrantRed = Color(0xFFEF4444)
+// Premium Obsidian Space-Dark Colors
+val DarkBackground = Color(0xFF07080B)
+val DarkSurface = Color(0xFF0D0F14)
+val DarkCard = Color(0xFF14171F)
+val AccentViolet = Color(0xFF9061F9) // Amethyst Violet
+val AccentCyan = Color(0xFF00D8F6)   // Electric Cyan
+val AccentAmber = Color(0xFFFFB300)  // Golden Amber
+val EmeraldGreen = Color(0xFF10B981) // Neon Emerald
+val VibrantRed = Color(0xFFFF5E5E)   // Coral Red
 
-// Neo-Minimal Light Colors
-val LightBackground = Color(0xFFF9FAFB)
+// Premium Icy Ice-Light Colors
+val LightBackground = Color(0xFFF3F5FA) // Snow Ice Mist
 val LightSurface = Color(0xFFFFFFFF)
-val LightCard = Color(0xFFF3F4F6)
-val AccentVioletLight = Color(0xFF7C3AED)
-val AccentCyanLight = Color(0xFF0891B2)
-val EmeraldGreenLight = Color(0xFF16A34A)
-val VibrantRedLight = Color(0xFFDC2626)
+val LightCard = Color(0xFFE8ECF4)     // Frost Card Accent
+val AccentVioletLight = Color(0xFF703BF7)
+val AccentCyanLight = Color(0xFF0EA5E9)
+val AccentAmberLight = Color(0xFFF59E0B) // Amber
+val EmeraldGreenLight = Color(0xFF059669)
+val VibrantRedLight = Color(0xFFEF4444)
 
 // Neutral Text Colors
-val TextDark = Color(0xFF111827)
-val TextMutedDark = Color(0xFF6B7280)
-val TextLight = Color(0xFFF9FAFB)
-val TextMutedLight = Color(0xFF9CA3AF)
+val TextDark = Color(0xFF0F172A)      // Slate 900
+val TextMutedDark = Color(0xFF475569) // Slate 600
+val TextLight = Color(0xFFF8FAFC)     // Slate 50
+val TextMutedLight = Color(0xFF94A3B8) // Slate 400
 
-// Recovery Mode Colors (Sage Green & Lavender)
-val SageGreenDark = Color(0xFF5A7F71)
-val LavenderDark = Color(0xFFA594F9)
-val RecoveryBgDark = Color(0xFF131A17)
-val RecoverySurfaceDark = Color(0xFF1B2421)
-val RecoveryCardDark = Color(0xFF24302C)
+// Recovery Mode Colors (Premium Sage Green & Lavender Glow)
+val SageGreenDark = Color(0xFF3B5D50)
+val LavenderDark = Color(0xFF8172E7)
+val RecoveryBgDark = Color(0xFF080C0B)
+val RecoverySurfaceDark = Color(0xFF0E1412)
+val RecoveryCardDark = Color(0xFF151E1B)
 
-val SageGreenLight = Color(0xFF7CA995)
-val LavenderLight = Color(0xFF735DA5)
-val RecoveryBgLight = Color(0xFFF0F5F3)
+val SageGreenLight = Color(0xFF528270)
+val LavenderLight = Color(0xFF6351B5)
+val RecoveryBgLight = Color(0xFFEBF1EE)
 val RecoverySurfaceLight = Color(0xFFFFFFFF)
-val RecoveryCardLight = Color(0xFFE5ECE9)
+val RecoveryCardLight = Color(0xFFD6E3DD)
 
-// Burnout Risk Colors (Red/Orange Theme)
-val BurnoutPrimary = Color(0xFFEF4444)
-val BurnoutSecondary = Color(0xFFF97316)
-val BurnoutBgDark = Color(0xFF1E1313)
-val BurnoutSurfaceDark = Color(0xFF271B1B)
-val BurnoutCardDark = Color(0xFF332323)
+// Burnout Risk Colors (Rich Crimson/Flame Theme)
+val BurnoutPrimary = Color(0xFFF43F5E)
+val BurnoutSecondary = Color(0xFFFB923C)
+val BurnoutBgDark = Color(0xFF0F0709)
+val BurnoutSurfaceDark = Color(0xFF170D10)
+val BurnoutCardDark = Color(0xFF221417)
 
-val BurnoutBgLight = Color(0xFFFFF5F5)
+val BurnoutBgLight = Color(0xFFFFF1F2)
 val BurnoutSurfaceLight = Color(0xFFFFFFFF)
-val BurnoutCardLight = Color(0xFFFEE2E2)
+val BurnoutCardLight = Color(0xFFFFE4E6)
 
-// Peak Momentum Colors (Amber/Gold Theme)
-val PeakPrimary = Color(0xFFF59E0B)
-val PeakSecondary = Color(0xFFD97706)
-val PeakBgDark = Color(0xFF1B1812)
-val PeakSurfaceDark = Color(0xFF242017)
-val PeakCardDark = Color(0xFF2E291F)
+// Peak Momentum Colors (Glowing Amber/Aurum Theme)
+val PeakPrimary = Color(0xFFFBBF24)
+val PeakSecondary = Color(0xFFF59E0B)
+val PeakBgDark = Color(0xFF0D0A06)
+val PeakSurfaceDark = Color(0xFF141009)
+val PeakCardDark = Color(0xFF1E170E)
 
 val PeakBgLight = Color(0xFFFFFBEB)
 val PeakSurfaceLight = Color(0xFFFFFFFF)
 val PeakCardLight = Color(0xFFFEF3C7)
+
 
 

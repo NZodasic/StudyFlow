@@ -11,11 +11,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+
 @Composable
 fun EmptyStateView(
     message: String,
+    icon: ImageVector,
     modifier: Modifier = Modifier,
-    iconEmoji: String = "✨",
     actionLabel: String? = null,
     onActionClick: (() -> Unit)? = null
 ) {
@@ -26,10 +30,11 @@ fun EmptyStateView(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = iconEmoji,
-            fontSize = 48.sp,
-            modifier = Modifier.padding(bottom = 16.dp)
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp).padding(bottom = 16.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
         )
         Text(
             text = message,

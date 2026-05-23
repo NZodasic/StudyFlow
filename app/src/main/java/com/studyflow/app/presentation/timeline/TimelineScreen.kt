@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -44,23 +45,38 @@ fun TimelineScreen(
     var showQuickAddDialog by remember { mutableStateOf<Pair<Boolean, Int>>(Pair(false, 9)) } // (show, hour)
     var newTaskTitle by remember { mutableStateOf("") }
     var taskOptionsTarget by remember { mutableStateOf<TaskEntity?>(null) }
+    val isDark = isSystemInDarkTheme()
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Daily Schedule", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                        Text(uiState.dateLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            text = "Daily Schedule",
+                            fontWeight = FontWeight.ExtraBold,
+                            style = MaterialTheme.typography.titleLarge,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = uiState.dateLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
@@ -80,7 +96,7 @@ fun TimelineScreen(
                         modifier = Modifier
                             .weight(1f)
                             .padding(horizontal = 16.dp),
-                        contentPadding = PaddingValues(bottom = 120.dp),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 140.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         items(uiState.slots) { slot ->
@@ -112,78 +128,128 @@ fun TimelineScreen(
                             brush = Brush.verticalGradient(
                                 colors = listOf(
                                     Color.Transparent,
-                                    MaterialTheme.colorScheme.background.copy(alpha = 0.95f),
+                                    MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
                                     MaterialTheme.colorScheme.background
                                 )
                             )
                         )
                         .padding(16.dp)
                 ) {
-                    Column(
+                    Card(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
-                                shape = RoundedCornerShape(24.dp)
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                shape = RoundedCornerShape(24.dp)
-                            )
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                     ) {
-                        Text(
-                            text = if (selectedTaskToPlace != null) "📍 Tap any slot's '+' to schedule" else "Unscheduled & Overdue Tasks",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (selectedTaskToPlace != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        if (uiState.unscheduledTasks.isEmpty()) {
-                            Text(
-                                text = "All tasks scheduled! 🎉",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
-                        } else {
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxWidth()
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.65f else 0.9f),
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.45f else 0.75f)
+                                        )
+                                    )
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                            Color.White.copy(alpha = 0.08f)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(24.dp)
+                                )
+                                .padding(16.dp)
+                        ) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                items(uiState.unscheduledTasks) { task ->
-                                    val isSelected = selectedTaskToPlace?.id == task.id
-                                    Card(
-                                        modifier = Modifier
-                                            .width(160.dp)
-                                            .clickable {
-                                                selectedTaskToPlace = if (isSelected) null else task
-                                            },
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                            else MaterialTheme.colorScheme.surface
-                                        ),
-                                        border = if (isSelected) {
-                                            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                                        } else null,
-                                        shape = RoundedCornerShape(12.dp)
+                                Text(
+                                    text = if (selectedTaskToPlace != null) "📍 Tap any hour's '+' slot to schedule" else "Unscheduled & Overdue Tasks",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (selectedTaskToPlace != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    letterSpacing = 0.5.sp
+                                )
+
+                                if (uiState.unscheduledTasks.isEmpty()) {
+                                    Text(
+                                        text = "All tasks scheduled! 🎉",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                } else {
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Column(modifier = Modifier.padding(10.dp)) {
-                                            Text(
-                                                text = task.title,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = task.category,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
+                                        items(uiState.unscheduledTasks) { task ->
+                                            val isSelected = selectedTaskToPlace?.id == task.id
+                                            val priorityColor = when (task.priority) {
+                                                0 -> Color(0xFF10B981) // Low (Emerald)
+                                                1 -> Color(0xFF00D8F6) // Medium (Cyan)
+                                                else -> Color(0xFFFF5E5E) // High (Red)
+                                            }
+
+                                            Card(
+                                                modifier = Modifier
+                                                    .width(160.dp)
+                                                    .clickable {
+                                                        selectedTaskToPlace = if (isSelected) null else task
+                                                    },
+                                                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                                                shape = RoundedCornerShape(14.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .background(
+                                                            brush = Brush.verticalGradient(
+                                                                colors = listOf(
+                                                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                                                    else MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.6f else 0.9f),
+                                                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+                                                                    else MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.3f else 0.7f)
+                                                                )
+                                                            )
+                                                        )
+                                                        .border(
+                                                            width = if (isSelected) 2.dp else 1.dp,
+                                                            brush = Brush.linearGradient(
+                                                                colors = if (isSelected) {
+                                                                    listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
+                                                                } else {
+                                                                    listOf(priorityColor.copy(alpha = 0.4f), Color.White.copy(alpha = 0.05f))
+                                                                }
+                                                            ),
+                                                            shape = RoundedCornerShape(14.dp)
+                                                        )
+                                                        .padding(12.dp)
+                                                ) {
+                                                    Column {
+                                                        Text(
+                                                            text = task.title,
+                                                            style = MaterialTheme.typography.bodyMedium,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = MaterialTheme.colorScheme.onSurface,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                        Spacer(modifier = Modifier.height(4.dp))
+                                                        Text(
+                                                            text = task.category,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = priorityColor
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -199,14 +265,15 @@ fun TimelineScreen(
     if (showQuickAddDialog.first) {
         AlertDialog(
             onDismissRequest = { showQuickAddDialog = Pair(false, 9) },
-            title = { Text("Quick Add Task") },
+            title = { Text("Quick Add Task", fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
                     value = newTaskTitle,
                     onValueChange = { newTaskTitle = it },
                     label = { Text("Task Title") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
             },
             confirmButton = {
@@ -219,7 +286,7 @@ fun TimelineScreen(
                         }
                     }
                 ) {
-                    Text("Add")
+                    Text("Add", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -234,7 +301,7 @@ fun TimelineScreen(
     taskOptionsTarget?.let { task ->
         AlertDialog(
             onDismissRequest = { taskOptionsTarget = null },
-            title = { Text("Task Options: ${task.title}") },
+            title = { Text("Task Options: ${task.title}", fontWeight = FontWeight.Bold) },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -252,9 +319,10 @@ fun TimelineScreen(
                             taskOptionsTarget = null
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Move / Reschedule")
+                        Text("Move / Reschedule", fontWeight = FontWeight.Bold)
                     }
 
                     Button(
@@ -266,9 +334,10 @@ fun TimelineScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error,
                             contentColor = MaterialTheme.colorScheme.onError
-                        )
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Remove from Schedule")
+                        Text("Remove from Schedule", fontWeight = FontWeight.Bold)
                     }
                 }
             },
@@ -288,6 +357,7 @@ private fun TimelineHourRow(
     onPlaceClick: () -> Unit,
     onTaskClick: (TaskEntity) -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -298,10 +368,10 @@ private fun TimelineHourRow(
         Text(
             text = slot.timeLabel,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
             modifier = Modifier
-                .width(80.dp)
+                .width(72.dp)
                 .padding(top = 8.dp)
         )
 
@@ -310,19 +380,28 @@ private fun TimelineHourRow(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxHeight()
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = 10.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(8.dp)
+                    .size(12.dp)
+                    .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), CircleShape)
+                    .padding(2.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.outlineVariant)
+                    .background(MaterialTheme.colorScheme.primary)
             )
             Box(
                 modifier = Modifier
-                    .width(1.dp)
+                    .width(2.dp)
                     .weight(1f)
-                    .background(MaterialTheme.colorScheme.outlineVariant)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                            )
+                        )
+                    )
             )
         }
 
@@ -335,87 +414,139 @@ private fun TimelineHourRow(
         ) {
             // Render Pomodoro sessions in this hour
             slot.pomodoros.forEach { pomodoro ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFF8B5CF6).copy(alpha = 0.15f),
-                                    Color(0xFF8B5CF6).copy(alpha = 0.05f)
-                                )
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = Color(0xFF8B5CF6).copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                val focusColor = Color(0xFF9061F9) // Amethyst Violet
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Timer,
-                        contentDescription = "Focus",
-                        tint = Color(0xFF8B5CF6),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Focus Block: ${pomodoro.taskLabel.ifBlank { "Deep Work" }}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF8B5CF6),
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(
-                        text = "${pomodoro.durationMinutes}m",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF8B5CF6).copy(alpha = 0.7f)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        focusColor.copy(alpha = if (isDark) 0.15f else 0.12f),
+                                        focusColor.copy(alpha = if (isDark) 0.05f else 0.04f)
+                                    )
+                                )
+                            )
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        focusColor.copy(alpha = 0.4f),
+                                        Color.White.copy(alpha = 0.05f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = "Focus",
+                                tint = focusColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Focus: ${pomodoro.taskLabel.ifBlank { "Deep Work" }}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = focusColor,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = "${pomodoro.durationMinutes}m",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = focusColor.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
                 }
             }
 
             // Render tasks scheduled for this hour
             slot.tasks.forEach { task ->
-                Row(
+                val priorityColor = when (task.priority) {
+                    0 -> Color(0xFF10B981) // Low (Emerald)
+                    1 -> Color(0xFF00D8F6) // Medium (Cyan)
+                    else -> Color(0xFFFF5E5E) // High (Red)
+                }
+
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
                         .clip(RoundedCornerShape(12.dp))
-                        .clickable { onTaskClick(task) }
-                        .padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .clickable { onTaskClick(task) },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                 ) {
-                    Icon(
-                        imageVector = if (task.isCompleted) Icons.Default.CheckCircle else Icons.Outlined.Circle,
-                        contentDescription = null,
-                        tint = if (task.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = task.title,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min)
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.55f else 0.85f),
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.3f else 0.6f)
+                                    )
+                                )
+                            )
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        priorityColor.copy(alpha = 0.35f),
+                                        Color.White.copy(alpha = 0.05f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(4.dp)
+                                .background(priorityColor)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (task.isCompleted) Icons.Default.CheckCircle else Icons.Outlined.Circle,
+                                contentDescription = null,
+                                tint = if (task.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = task.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
             }
 
             // If empty slot or place system active
             if (slot.tasks.isEmpty() && slot.pomodoros.isEmpty()) {
+                val baseColor = if (isPlaceSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -425,7 +556,13 @@ private fun TimelineHourRow(
                         )
                         .border(
                             width = 1.dp,
-                            color = if (isPlaceSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else Color.Transparent,
+                            brush = if (isPlaceSelected) {
+                                Brush.linearGradient(
+                                    colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
+                                )
+                            } else {
+                                Brush.linearGradient(colors = listOf(baseColor, baseColor))
+                            },
                             shape = RoundedCornerShape(8.dp)
                         )
                         .clickable { onPlaceClick() }
@@ -434,18 +571,18 @@ private fun TimelineHourRow(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = null,
-                            tint = if (isPlaceSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                            tint = baseColor,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = if (isPlaceSelected) "Place here" else "Schedule task",
+                            text = if (isPlaceSelected) "Place task here" else "Schedule task",
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (isPlaceSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                            color = baseColor,
                             fontWeight = if (isPlaceSelected) FontWeight.Bold else FontWeight.Normal
                         )
                     }
@@ -454,3 +591,4 @@ private fun TimelineHourRow(
         }
     }
 }
+

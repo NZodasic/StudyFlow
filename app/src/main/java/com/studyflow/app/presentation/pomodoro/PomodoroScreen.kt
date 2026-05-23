@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -51,6 +53,12 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.yield
 import kotlinx.coroutines.delay
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 
 @Composable
 fun PomodoroScreen(
@@ -58,6 +66,19 @@ fun PomodoroScreen(
     onNavigateToSettings: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                viewModel.incrementAppExits()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     PomodoroContent(
         uiState = uiState,
@@ -68,7 +89,8 @@ fun PomodoroScreen(
         onTaskLabelChange = viewModel::updateTaskLabel,
         onNavigateToSettings = onNavigateToSettings,
         onSaveReflection = viewModel::saveSessionReflection,
-        onCancelReflection = { viewModel.setReflectionDialogVisible(false) }
+        onCancelReflection = { viewModel.setReflectionDialogVisible(false) },
+        onDebugComplete = viewModel::debugCompleteSession
     )
 }
 
@@ -88,80 +110,10 @@ fun AmbientModeOverlay(
     onExit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var ambientSoundType by remember { mutableStateOf(AmbientSoundType.NONE) }
     var breathingPhase by remember { mutableStateOf(BreathingPhase.INHALE) }
     var animProgress by remember { mutableStateOf(0f) }
 
-    // Audio generator triggered by ambientSoundType
-    LaunchedEffect(ambientSoundType) {
-        if (ambientSoundType == AmbientSoundType.NONE) return@LaunchedEffect
-        
-        withContext(Dispatchers.IO) {
-            val sampleRate = 44100
-            val minBufferSize = AudioTrack.getMinBufferSize(
-                sampleRate,
-                AudioFormat.CHANNEL_OUT_MONO,
-                AudioFormat.ENCODING_PCM_16BIT
-            )
-            val bufferSize = if (minBufferSize > 0) minBufferSize else 8192
-            val audioTrack = try {
-                AudioTrack.Builder()
-                    .setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .build()
-                    )
-                    .setAudioFormat(
-                        AudioFormat.Builder()
-                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                            .setSampleRate(sampleRate)
-                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                            .build()
-                    )
-                    .setBufferSizeInBytes(bufferSize)
-                    .setTransferMode(AudioTrack.MODE_STREAM)
-                    .build()
-            } catch (e: Exception) {
-                null
-            }
 
-            if (audioTrack == null) return@withContext
-
-            try {
-                audioTrack.play()
-                val buffer = ShortArray(bufferSize / 2)
-                var lastOut = 0.0f
-                val random = Random(System.currentTimeMillis())
-                while (isActive) {
-                    for (i in buffer.indices) {
-                        val white = random.nextFloat() * 2f - 1f
-                        if (ambientSoundType == AmbientSoundType.BROWN) {
-                            // Leaky integrator for brown noise: 1/f^2 slope
-                            lastOut = (lastOut + (0.02f * white)) / 1.02f
-                            val sample = (lastOut * 3.5f * Short.MAX_VALUE).toInt()
-                            buffer[i] = sample.coerceIn(-Short.MAX_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
-                        } else {
-                            // White noise: random PCM samples
-                            val sample = (white * 0.15f * Short.MAX_VALUE).toInt()
-                            buffer[i] = sample.coerceIn(-Short.MAX_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
-                        }
-                    }
-                    audioTrack.write(buffer, 0, buffer.size)
-                    yield()
-                }
-            } catch (e: Exception) {
-                // Cancelled or errored
-            } finally {
-                try {
-                    audioTrack.stop()
-                    audioTrack.release()
-                } catch (e: Exception) {
-                    // Ignore
-                }
-            }
-        }
-    }
 
     // Breathing phase timer cycle (16s total: 4s inhale, 4s hold, 4s exhale, 4s hold)
     LaunchedEffect(Unit) {
@@ -277,40 +229,7 @@ fun AmbientModeOverlay(
                 modifier = Modifier.padding(top = 8.dp)
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
 
-            // Sound Selector
-            Text(
-                text = "Ambient Soundscapes",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                listOf(
-                    AmbientSoundType.NONE to "Silent",
-                    AmbientSoundType.WHITE to "White Noise 🔕",
-                    AmbientSoundType.BROWN to "Brown Noise 🌊"
-                ).forEach { (type, label) ->
-                    val selected = ambientSoundType == type
-                    FilterChip(
-                        selected = selected,
-                        onClick = { ambientSoundType = type },
-                        label = { Text(label, fontWeight = FontWeight.Bold) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(48.dp))
 
             Button(
                 onClick = onExit,
@@ -338,9 +257,77 @@ fun PomodoroContent(
     onTaskLabelChange: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
     onSaveReflection: (Int, String, Int) -> Unit,
-    onCancelReflection: () -> Unit
+    onCancelReflection: () -> Unit,
+    onDebugComplete: () -> Unit
 ) {
     var isAmbientModeActive by remember { mutableStateOf(false) }
+    var ambientSoundType by remember { mutableStateOf(AmbientSoundType.NONE) }
+
+    // Audio generator triggered by ambientSoundType
+    LaunchedEffect(ambientSoundType) {
+        if (ambientSoundType == AmbientSoundType.NONE) return@LaunchedEffect
+        
+        withContext(Dispatchers.IO) {
+            val sampleRate = 44100
+            val minBufferSize = AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+            val bufferSize = if (minBufferSize > 0) minBufferSize else 8192
+            val audioTrack = try {
+                AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(bufferSize)
+                    .setTransferMode(AudioTrack.MODE_STREAM)
+                    .build()
+            } catch (e: Exception) {
+                null
+            }
+
+            if (audioTrack == null) return@withContext
+
+            try {
+                audioTrack.play()
+                val buffer = ShortArray(bufferSize / 2)
+                var lastOut = 0.0f
+                val random = Random(System.currentTimeMillis())
+                while (isActive) {
+                    for (i in buffer.indices) {
+                        val white = random.nextFloat() * 2f - 1f
+                        if (ambientSoundType == AmbientSoundType.BROWN) {
+                            lastOut = (lastOut + (0.02f * white)) / 1.02f
+                            val sample = (lastOut * 3.5f * Short.MAX_VALUE).toInt()
+                            buffer[i] = sample.coerceIn(-Short.MAX_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+                        } else {
+                            val sample = (white * 0.15f * Short.MAX_VALUE).toInt()
+                            buffer[i] = sample.coerceIn(-Short.MAX_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+                        }
+                    }
+                    audioTrack.write(buffer, 0, buffer.size)
+                    yield()
+                }
+            } catch (e: Exception) {
+            } finally {
+                try {
+                    audioTrack.stop()
+                    audioTrack.release()
+                } catch (e: Exception) {}
+            }
+        }
+    }
 
     if (uiState.showReflectionDialog) {
         var rating by remember { mutableStateOf(5) }
@@ -388,6 +375,13 @@ fun PomodoroContent(
                             )
                         }
                     }
+
+                    Text(
+                        text = "📱 App exits (Auto-tracked): ${uiState.appExitsCount}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
 
                     Text("Distractions count", style = MaterialTheme.typography.labelMedium)
                     Row(
@@ -482,7 +476,8 @@ fun PomodoroContent(
                     secondsRemaining = uiState.secondsRemaining,
                     totalSeconds = uiState.totalSeconds,
                     mode = uiState.mode,
-                    isRunning = uiState.isRunning
+                    isRunning = uiState.isRunning,
+                    onDebugComplete = onDebugComplete
                 )
             }
 
@@ -585,22 +580,83 @@ fun PomodoroContent(
                 }
             }
 
-            // Optional Task Input
+            // Optional Task Input Dropdown
             item {
-                OutlinedTextField(
-                    value = uiState.taskLabel,
-                    onValueChange = onTaskLabelChange,
-                    label = { Text("What are you working on?") },
-                    placeholder = { Text("e.g. Study Chemistry, Read Essay") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
+                var dropdownExpanded by remember { mutableStateOf(false) }
+                
+                ExposedDropdownMenuBox(
+                    expanded = dropdownExpanded,
+                    onExpandedChange = { dropdownExpanded = !dropdownExpanded },
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+                ) {
+                    OutlinedTextField(
+                        readOnly = true,
+                        value = uiState.taskLabel,
+                        onValueChange = {},
+                        label = { Text("What are you working on?") },
+                        placeholder = { Text("Select a task") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
                     )
+                    ExposedDropdownMenu(
+                        expanded = dropdownExpanded,
+                        onDismissRequest = { dropdownExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("No Task") },
+                            onClick = {
+                                onTaskLabelChange("")
+                                dropdownExpanded = false
+                            }
+                        )
+                        uiState.tasks.forEach { task ->
+                            DropdownMenuItem(
+                                text = { Text(task.title) },
+                                onClick = {
+                                    onTaskLabelChange(task.title)
+                                    dropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                // Sound Selector
+                Text(
+                    text = "Ambient Soundscapes",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf(
+                        AmbientSoundType.NONE to "Silent",
+                        AmbientSoundType.WHITE to "White 🔕",
+                        AmbientSoundType.BROWN to "Brown 🌊"
+                    ).forEach { (type, label) ->
+                        val selected = ambientSoundType == type
+                        FilterChip(
+                            selected = selected,
+                            onClick = { ambientSoundType = type },
+                            label = { Text(label) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                selectedLabelColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    }
+                }
             }
 
             // Settings Summary Info Card
@@ -691,7 +747,8 @@ fun TimerDisplay(
     secondsRemaining: Int,
     totalSeconds: Int,
     mode: PomodoroMode,
-    isRunning: Boolean
+    isRunning: Boolean,
+    onDebugComplete: () -> Unit
 ) {
     val minutes = secondsRemaining / 60
     val seconds = secondsRemaining % 60
@@ -704,7 +761,14 @@ fun TimerDisplay(
         1.0f
     }
 
-    val sweepAngle = progress * 360f
+    // Animated progress for extremely smooth sweep transition
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 1000, easing = LinearEasing),
+        label = "smoothProgress"
+    )
+
+    val sweepAngle = animatedProgress * 360f
 
     val primaryColor = MaterialTheme.colorScheme.primary
     val breakColor = MaterialTheme.colorScheme.secondary
@@ -717,8 +781,15 @@ fun TimerDisplay(
         PomodoroMode.LONG_BREAK -> longBreakColor
     }
 
-    // Breathing pulse animation for active study session
+    val nextColor = when (mode) {
+        PomodoroMode.FOCUS -> breakColor
+        PomodoroMode.SHORT_BREAK -> primaryColor
+        PomodoroMode.LONG_BREAK -> primaryColor
+    }
+
+    // Double-halo breathing pulse animation for premium look
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 0.92f,
         targetValue = 1.08f,
@@ -738,12 +809,47 @@ fun TimerDisplay(
         label = "pulseAlpha"
     )
 
+    val breathScale by infiniteTransition.animateFloat(
+        initialValue = 0.88f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(6000, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breathScale"
+    )
+    val breathAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.02f,
+        targetValue = 0.12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(6000, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breathAlpha"
+    )
+
     Box(
-        modifier = Modifier.size(250.dp),
+        modifier = Modifier
+            .size(250.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = {
+                        onDebugComplete()
+                    }
+                )
+            },
         contentAlignment = Alignment.Center
     ) {
-        // Breathing soft light halo
+        // Breathing double halos
         if (isRunning && mode == PomodoroMode.FOCUS) {
+            // Outer Halo
+            Box(
+                modifier = Modifier
+                    .size(220.dp * breathScale)
+                    .clip(CircleShape)
+                    .background(activeColor.copy(alpha = breathAlpha))
+            )
+            // Inner Halo
             Box(
                 modifier = Modifier
                     .size(220.dp * pulseScale)
@@ -760,9 +866,11 @@ fun TimerDisplay(
                 style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
             )
 
-            // Outer soft glow Arc
+            // Outer soft glow Arc with dynamic linear gradient
             drawArc(
-                color = activeColor.copy(alpha = 0.15f),
+                brush = Brush.linearGradient(
+                    colors = listOf(activeColor.copy(alpha = 0.2f), nextColor.copy(alpha = 0.2f))
+                ),
                 startAngle = -90f,
                 sweepAngle = sweepAngle,
                 useCenter = false,
@@ -771,9 +879,11 @@ fun TimerDisplay(
                 style = Stroke(width = 14.dp.toPx(), cap = StrokeCap.Round)
             )
 
-            // Main Progress Arc
+            // Main Progress Arc with dynamic linear gradient
             drawArc(
-                color = activeColor,
+                brush = Brush.linearGradient(
+                    colors = listOf(activeColor, nextColor)
+                ),
                 startAngle = -90f,
                 sweepAngle = sweepAngle,
                 useCenter = false,
@@ -814,6 +924,7 @@ fun TimerDisplay(
 fun HistoryItemRow(session: PomodoroSessionEntity) {
     val formatter = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
     val formattedDate = formatter.format(Date(session.completedAtMillis))
+    val isDark = isSystemInDarkTheme()
 
     Card(
         modifier = Modifier
@@ -821,76 +932,107 @@ fun HistoryItemRow(session: PomodoroSessionEntity) {
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = Color.Transparent
         )
     ) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (session.taskLabel.isNotEmpty()) session.taskLabel else "Focus Session",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.85f else 0.95f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.6f else 0.8f)
+                        )
+                    )
                 )
-                
-                if (session.focusRating > 0) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    ) {
-                        for (i in 1..5) {
-                            val isSelected = i <= session.focusRating
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = null,
-                                tint = if (isSelected) Color(0xFFF59E0B) else Color.LightGray.copy(alpha = 0.3f),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        if (session.distractionsCount > 0) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "⚠️ ${session.distractionsCount} distraction(s)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = if (isDark) 0.12f else 0.35f),
+                            Color.White.copy(alpha = if (isDark) 0.04f else 0.1f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (session.taskLabel.isNotEmpty()) session.taskLabel else "Focus Session",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    
+                    if (session.focusRating > 0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        ) {
+                            for (i in 1..5) {
+                                val isSelected = i <= session.focusRating
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = if (isSelected) Color(0xFFF59E0B) else Color.LightGray.copy(alpha = 0.3f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            if (session.distractionsCount > 0) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "⚠️ ${session.distractionsCount} distraction(s)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            if (session.appExitsCount > 0) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "📱 ${session.appExitsCount} exit(s)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     }
-                }
-                
-                if (session.reflectionNote.isNotEmpty()) {
+                    
+                    if (session.reflectionNote.isNotEmpty()) {
+                        Text(
+                            text = "\"${session.reflectionNote}\"",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "\"${session.reflectionNote}\"",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                        ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        text = formattedDate,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
-
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = formattedDate,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${session.durationMinutes} min",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${session.durationMinutes} min",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
@@ -918,7 +1060,8 @@ private fun PomodoroContentLightPreview() {
             onTaskLabelChange = {},
             onNavigateToSettings = {},
             onSaveReflection = { _, _, _ -> },
-            onCancelReflection = {}
+            onCancelReflection = {},
+            onDebugComplete = {}
         )
     }
 }

@@ -33,9 +33,16 @@ import com.studyflow.app.data.local.entity.TaskEntity
 import com.studyflow.app.data.local.entity.WorkspaceEntity
 import com.studyflow.app.ui.components.LoadingIndicator
 import com.studyflow.app.ui.components.SectionHeader
-import com.studyflow.app.ui.theme.StudyFlowTheme
+import com.studyflow.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.draw.shadow
 
 fun parseHexColor(colorHex: String): Color {
     return try {
@@ -489,6 +496,7 @@ private fun DashboardContent(
         SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault()).format(Date())
     }
     val scrollState = rememberScrollState()
+    var showOverrideTooltip by remember { mutableStateOf(false) }
 
     val completedTasks = uiState.tasksCompletedTodayCount
     val totalTasks = uiState.tasksTotalTodayCount
@@ -521,6 +529,27 @@ private fun DashboardContent(
         else -> "⚡ Focus Mode"
     }
 
+    if (showOverrideTooltip) {
+        AlertDialog(
+            onDismissRequest = { showOverrideTooltip = false },
+            title = { Text("Study States Explained") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("AUTO: System learns from your signals to suggest optimal state.", fontWeight = FontWeight.Bold)
+                    Text("FOCUS: Default mode for regular deep work.")
+                    Text("RECOVERY: For low energy. Promotes rest and light tasks.")
+                    Text("BURNOUT: Critical state. Prioritizes essential work only.")
+                    Text("PEAK: High momentum. Good for tackling hardest tasks.")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showOverrideTooltip = false }) {
+                    Text("Got it")
+                }
+            }
+        )
+    }
+
     Column(
         modifier = modifier
             .verticalScroll(scrollState)
@@ -551,8 +580,27 @@ private fun DashboardContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(brush = Brush.linearGradient(colors = stateGradient))
-                    .border(width = 1.dp, color = stateBorderColor, shape = RoundedCornerShape(24.dp))
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            )
+                        )
+                    )
+                    .background(
+                        brush = Brush.linearGradient(colors = stateGradient)
+                    )
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                stateTextColor.copy(alpha = 0.4f),
+                                stateTextColor.copy(alpha = 0.08f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(24.dp)
+                    )
                     .padding(20.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -561,15 +609,51 @@ private fun DashboardContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Left side: circular productivity ring (colored dynamically to match studyState)
+                        // Left side: circular productivity ring with breathing radial glow behind it
                         Box(
-                            modifier = Modifier.size(100.dp),
+                            modifier = Modifier.size(110.dp),
                             contentAlignment = Alignment.Center
                         ) {
+                            val infiniteTransition = rememberInfiniteTransition(label = "hud_glow")
+                            val glowAlpha by infiniteTransition.animateFloat(
+                                initialValue = 0.12f,
+                                targetValue = 0.35f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(2200, easing = FastOutSlowInEasing),
+                                    repeatMode = RepeatMode.Reverse
+                                ),
+                                label = "glow_alpha"
+                            )
+                            val glowScale by infiniteTransition.animateFloat(
+                                initialValue = 0.85f,
+                                targetValue = 1.15f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(2200, easing = FastOutSlowInEasing),
+                                    repeatMode = RepeatMode.Reverse
+                                ),
+                                label = "glow_scale"
+                            )
+
+                            // Radial Glow Aura
+                            Box(
+                                modifier = Modifier
+                                    .size(90.dp)
+                                    .scale(glowScale)
+                                    .background(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(
+                                                stateTextColor.copy(alpha = glowAlpha),
+                                                Color.Transparent
+                                            )
+                                        ),
+                                        shape = CircleShape
+                                    )
+                            )
+
                             CircularProgressIndicator(
                                 progress = { momentumScore.toFloat() / 100f },
-                                modifier = Modifier.fillMaxSize(),
-                                strokeWidth = 10.dp,
+                                modifier = Modifier.size(100.dp),
+                                strokeWidth = 9.dp,
                                 color = stateTextColor,
                                 trackColor = stateTextColor.copy(alpha = 0.1f),
                                 strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
@@ -577,15 +661,19 @@ private fun DashboardContent(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     text = "$momentumScore",
-                                    style = MaterialTheme.typography.headlineSmall,
+                                    style = MaterialTheme.typography.headlineLarge.copy(
+                                        letterSpacing = (-1).sp,
+                                        fontSize = 42.sp
+                                    ),
                                     fontWeight = FontWeight.Black,
                                     color = MaterialTheme.colorScheme.onBackground
                                 )
                                 Text(
                                     text = "MOMENTUM",
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                                    letterSpacing = 1.sp
                                 )
                             }
                         }
@@ -618,12 +706,13 @@ private fun DashboardContent(
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = uiState.stateAdvice.ifEmpty { "StudyFlow OS: Optimize your cognitive states." },
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
+                                lineHeight = 20.sp
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
@@ -636,7 +725,7 @@ private fun DashboardContent(
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
                         Column {
                             Text(
@@ -644,11 +733,20 @@ private fun DashboardContent(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
-                            Text(
-                                text = "🔥 ${uiState.reflectionStreak} days",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                repeat(7) { i ->
+                                    val isActive = i >= (7 - uiState.reflectionStreak)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (isActive) stateTextColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                                            )
+                                    )
+                                }
+                            }
                         }
                         Column {
                             Text(
@@ -656,15 +754,16 @@ private fun DashboardContent(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "✅ $completedTasks/$totalTasks",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
+                                text = if (totalTasks == 0) "No tasks" else "✅ $completedTasks/$totalTasks",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Black
                             )
                         }
                     }
 
-                    Divider(color = stateBorderColor.copy(alpha = 0.3f))
+                    Divider(color = stateBorderColor.copy(alpha = 0.15f))
 
                     // Dynamic State override controls
                     Row(
@@ -672,12 +771,22 @@ private fun DashboardContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = "Override Control:",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Override Control",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                            IconButton(onClick = { showOverrideTooltip = true }, modifier = Modifier.size(24.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.HelpOutline,
+                                    contentDescription = "Help",
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
                         Row(
                             modifier = Modifier.weight(1f),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -687,22 +796,22 @@ private fun DashboardContent(
                                 val isSelected = uiState.studyStateOverride == opt
                                 val activeBg = when (opt) {
                                     "AUTO" -> MaterialTheme.colorScheme.primary
-                                    "RECOVERY" -> Color(0xFF2E7D32)
-                                    "BURNOUT" -> Color(0xFFC62828)
-                                    "PEAK" -> Color(0xFFEF6C00)
-                                    else -> Color(0xFF673AB7)
+                                    "RECOVERY" -> Color(0xFF10B981)
+                                    "BURNOUT" -> Color(0xFFFF5E5E)
+                                    "PEAK" -> Color(0xFFFF9F1C)
+                                    else -> Color(0xFF9061F9)
                                 }
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(if (isSelected) activeBg else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                        .background(if (isSelected) activeBg else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                                         .clickable { onUpdateStudyStateOverride(opt) }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        .padding(horizontal = 8.dp, vertical = 5.dp)
                                 ) {
                                     Text(
                                         text = opt,
                                         fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        fontWeight = FontWeight.Black,
                                         color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -712,6 +821,18 @@ private fun DashboardContent(
                 }
             }
         }
+
+        DailyStudyTipCard(
+            uiState = uiState,
+            stateTextColor = stateTextColor,
+            stateBorderColor = stateBorderColor,
+            onStartFocusClick = onStartFocusClick,
+            onAddResourceClick = onAddResourceClick,
+            onAddNoteClick = onAddNoteClick,
+            onAddTaskClick = onAddTaskClick,
+            onNavigateToTimeline = onNavigateToTimeline,
+            onStartReflectionClick = onStartReflectionClick
+        )
 
         // Daily Reflection Prompt Card
         if (!uiState.hasReflectedToday) {
@@ -839,6 +960,7 @@ private fun DashboardContent(
                             emoji = habitStatus.habit.iconEmoji,
                             name = habitStatus.habit.name,
                             isDone = habitStatus.isCompletedToday,
+                            streak = habitStatus.habit.currentStreak,
                             onClick = { onHabitToggle(habitStatus.habit.id) }
                         )
                     }
@@ -1001,6 +1123,281 @@ private fun DashboardContent(
 }
 
 @Composable
+private fun DailyStudyTipCard(
+    uiState: DashboardUiState,
+    stateTextColor: Color,
+    stateBorderColor: Color,
+    onStartFocusClick: () -> Unit,
+    onAddResourceClick: () -> Unit,
+    onAddNoteClick: () -> Unit,
+    onAddTaskClick: () -> Unit,
+    onNavigateToTimeline: () -> Unit,
+    onStartReflectionClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val completedTasks = uiState.tasksCompletedTodayCount
+    val totalTasks = uiState.tasksTotalTodayCount
+    val taskProgress = if (totalTasks > 0) {
+        completedTasks.toFloat() / totalTasks.toFloat()
+    } else {
+        0f
+    }
+
+    val staticTips = listOf(
+        "Use active recall instead of re-reading your notes. Test yourself first.",
+        "Take a 5-minute break every 25 minutes. Movement helps consolidate memory.",
+        "Break large assignments into 20-minute concrete tasks.",
+        "Turn off phone notifications and place it in another room during focus sessions.",
+        "Review your notes from today before going to sleep.",
+        "Stay hydrated. Your brain needs water for optimal cognitive function."
+    )
+    var tipIndex by remember { mutableIntStateOf(0) }
+    val currentTip = staticTips[tipIndex % staticTips.size]
+
+    val primaryActionLabel: String
+    val primaryActionIcon: ImageVector
+    val primaryAction: () -> Unit
+
+    when {
+        uiState.currentStudyState == "BURNOUT" || uiState.currentStudyState == "RECOVERY" -> {
+            primaryActionLabel = if (uiState.hasReflectedToday) "Log signal" else "Reflect"
+            primaryActionIcon = if (uiState.hasReflectedToday) Icons.Default.Category else Icons.Default.EditNote
+            primaryAction = if (uiState.hasReflectedToday) onAddResourceClick else onStartReflectionClick
+        }
+        uiState.todayTasks.isEmpty() -> {
+            primaryActionLabel = "Add task"
+            primaryActionIcon = Icons.Default.Assignment
+            primaryAction = onAddTaskClick
+        }
+        else -> {
+            primaryActionLabel = "Start focus"
+            primaryActionIcon = Icons.Default.PlayArrow
+            primaryAction = onStartFocusClick
+        }
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, stateBorderColor.copy(alpha = 0.55f))
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(stateTextColor.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lightbulb,
+                        contentDescription = null,
+                        tint = stateTextColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Daily Study Tip",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        IconButton(
+                            onClick = { tipIndex++ },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Next Tip",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = currentTip,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AiSignalPill(
+                    label = "Momentum",
+                    value = "${uiState.momentumScore}",
+                    icon = Icons.Default.CheckCircle,
+                    tint = stateTextColor,
+                    modifier = Modifier.weight(1f)
+                )
+                AiSignalPill(
+                    label = "Focus",
+                    value = "${uiState.focusMinutesToday}m",
+                    icon = Icons.Default.Timer,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.weight(1f)
+                )
+                AiSignalPill(
+                    label = "Tasks",
+                    value = "$completedTasks/$totalTasks",
+                    icon = Icons.Default.Assignment,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Task completion",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${(taskProgress * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                LinearProgressIndicator(
+                    progress = { taskProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    color = stateTextColor,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Button(
+                    onClick = primaryAction,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = stateTextColor),
+                    modifier = Modifier.weight(1.2f)
+                ) {
+                    Icon(
+                        imageVector = primaryActionIcon,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(primaryActionLabel)
+                }
+
+                OutlinedButton(
+                    onClick = onNavigateToTimeline,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Timeline")
+                }
+            }
+
+            TextButton(
+                onClick = onAddNoteClick,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.EditNote,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Capture note")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AiSignalPill(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(64.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
 private fun StatCard(
     title: String,
     value: String,
@@ -1009,26 +1406,88 @@ private fun StatCard(
     contentColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val isDark = isSystemInDarkTheme()
     Card(
-        modifier = modifier.height(100.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor, contentColor = contentColor),
+        modifier = modifier
+            .height(100.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(16.dp),
+                clip = false,
+                ambientColor = containerColor.copy(alpha = 0.1f),
+                spotColor = containerColor.copy(alpha = 0.2f)
+            ),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent, contentColor = contentColor),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.8f else 0.9f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.6f else 0.75f)
+                        )
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            containerColor.copy(alpha = 0.4f),
+                            containerColor.copy(alpha = 0.1f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .padding(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Subtle internal glow light source
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .align(Alignment.TopEnd)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                containerColor.copy(alpha = 0.15f),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+            )
+
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = contentColor.copy(alpha = 0.8f)
+                    )
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = containerColor
+                    )
+                }
+                Text(
+                    text = value,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor
+                )
             }
-            Text(text = value, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -1040,20 +1499,76 @@ private fun QuickActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "quick_action_scale"
+    )
+    val isDark = isSystemInDarkTheme()
+    val primaryColor = MaterialTheme.colorScheme.primary
+
     Card(
         onClick = onClick,
-        modifier = modifier.height(80.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        interactionSource = interactionSource,
+        modifier = modifier
+            .height(80.dp)
+            .graphicsLayer(scaleX = scale, scaleY = scale)
+            .shadow(
+                elevation = if (isPressed) 2.dp else 6.dp,
+                shape = RoundedCornerShape(16.dp),
+                clip = false,
+                ambientColor = primaryColor.copy(alpha = 0.05f),
+                spotColor = primaryColor.copy(alpha = 0.1f)
+            ),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.75f else 0.9f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.5f else 0.7f)
+                        )
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = if (isDark) 0.12f else 0.35f),
+                            Color.White.copy(alpha = if (isDark) 0.04f else 0.1f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(24.dp))
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = primaryColor
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = label,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
     }
 }
@@ -1063,31 +1578,138 @@ private fun HabitCircle(
     emoji: String,
     name: String,
     isDone: Boolean,
+    streak: Int = 0,
     onClick: () -> Unit
 ) {
+    val scale by animateFloatAsState(
+        targetValue = if (isDone) 1.15f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "habit_emoji_scale"
+    )
+    val glowScale by animateFloatAsState(
+        targetValue = if (isDone) 1.2f else 1.0f,
+        animationSpec = tween(300),
+        label = "habit_glow_scale"
+    )
+    val isDark = isSystemInDarkTheme()
+    val activeColor = MaterialTheme.colorScheme.primary
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable { onClick() }
+        modifier = Modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
     ) {
         Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(
-                    if (isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-                ),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(64.dp)
         ) {
-            Text(text = emoji, fontSize = 28.sp)
+            if (isDone) {
+                // Completed radial glow backing
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .scale(glowScale)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    activeColor.copy(alpha = 0.35f),
+                                    Color.Transparent
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(
+                        brush = if (isDone) {
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    activeColor,
+                                    activeColor.copy(alpha = 0.8f)
+                                )
+                            )
+                        } else {
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.6f else 0.8f),
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.3f else 0.5f)
+                                )
+                            )
+                        }
+                    )
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            colors = if (isDone) {
+                                listOf(
+                                    Color.White.copy(alpha = 0.4f),
+                                    Color.Transparent
+                                )
+                            } else {
+                                listOf(
+                                    Color.White.copy(alpha = if (isDark) 0.1f else 0.3f),
+                                    Color.White.copy(alpha = if (isDark) 0.03f else 0.08f)
+                                )
+                            }
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = emoji,
+                    fontSize = 28.sp,
+                    modifier = Modifier.scale(scale)
+                )
+            }
+
+            if (streak > 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 4.dp, y = (-4).dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.secondary,
+                            shape = CircleShape
+                        )
+                        .border(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = CircleShape
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "🔥$streak",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondary
+                    )
+                }
+            }
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = name,
             fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(64.dp),
-            color = MaterialTheme.colorScheme.onBackground
+            modifier = Modifier.width(68.dp),
+            color = if (isDone) activeColor else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
 }
@@ -1098,51 +1720,114 @@ private fun DashboardTaskCard(
     onToggleComplete: () -> Unit,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "task_card_scale"
+    )
+    val isDark = isSystemInDarkTheme()
+    val priorityColor = when (task.priority) {
+        0 -> EmeraldGreen // Low
+        1 -> PeakPrimary  // Medium
+        else -> VibrantRed // High
+    }
+
     Card(
+        onClick = onClick,
+        interactionSource = interactionSource,
         modifier = Modifier
             .width(180.dp)
             .height(100.dp)
-            .clickable { onClick() },
+            .graphicsLayer(scaleX = scale, scaleY = scale)
+            .shadow(
+                elevation = if (isPressed) 2.dp else 6.dp,
+                shape = RoundedCornerShape(16.dp),
+                clip = false,
+                ambientColor = priorityColor.copy(alpha = 0.05f),
+                spotColor = priorityColor.copy(alpha = 0.1f)
+            ),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (task.isCompleted) {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            }
-        )
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Text(
-                    text = task.title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.8f else 0.92f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.55f else 0.75f)
+                        )
+                    )
                 )
-                Checkbox(
-                    checked = task.isCompleted,
-                    onCheckedChange = { onToggleComplete() },
-                    modifier = Modifier.size(24.dp)
+                .border(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = if (isDark) 0.1f else 0.3f),
+                            Color.White.copy(alpha = if (isDark) 0.03f else 0.08f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                )
+        ) {
+            // Priority stripe on the left edge
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(priorityColor, priorityColor.copy(alpha = 0.6f))
+                        ),
+                        shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 14.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = task.title,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (task.isCompleted) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Checkbox(
+                        checked = task.isCompleted,
+                        onCheckedChange = { onToggleComplete() },
+                        modifier = Modifier
+                            .size(20.dp)
+                            .scale(0.85f),
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = MaterialTheme.colorScheme.primary,
+                            uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    )
+                }
+                Text(
+                    text = task.category,
+                    fontSize = 10.sp,
+                    color = priorityColor,
+                    fontWeight = FontWeight.Bold
                 )
             }
-            Text(
-                text = task.category,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
-            )
         }
     }
 }
@@ -1280,32 +1965,75 @@ private fun WorkspaceCard(
     modifier: Modifier = Modifier
 ) {
     val themeColor = remember(workspace.colorHex) { parseHexColor(workspace.colorHex) }
-    val gradientBrush = remember(themeColor) {
-        Brush.linearGradient(
-            colors = listOf(
-                themeColor.copy(alpha = 0.15f),
-                themeColor.copy(alpha = 0.02f)
-            )
-        )
-    }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "workspace_card_scale"
+    )
+    val isDark = isSystemInDarkTheme()
 
     Card(
         onClick = onClick,
-        modifier = modifier.height(130.dp),
+        interactionSource = interactionSource,
+        modifier = modifier
+            .height(130.dp)
+            .graphicsLayer(scaleX = scale, scaleY = scale)
+            .shadow(
+                elevation = if (isPressed) 2.dp else 8.dp,
+                shape = RoundedCornerShape(20.dp),
+                clip = false,
+                ambientColor = themeColor.copy(alpha = 0.1f),
+                spotColor = themeColor.copy(alpha = 0.2f)
+            ),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(gradientBrush)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            themeColor.copy(alpha = if (isDark) 0.18f else 0.14f),
+                            themeColor.copy(alpha = if (isDark) 0.03f else 0.01f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.7f else 0.9f)
+                        )
+                    )
+                )
                 .border(
                     width = 1.dp,
-                    color = themeColor.copy(alpha = 0.25f),
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            themeColor.copy(alpha = 0.45f),
+                            themeColor.copy(alpha = 0.1f),
+                            Color.White.copy(alpha = if (isDark) 0.05f else 0.2f)
+                        )
+                    ),
                     shape = RoundedCornerShape(20.dp)
                 )
                 .padding(16.dp)
         ) {
+            // Soft background gradient dot
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .align(Alignment.TopEnd)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                themeColor.copy(alpha = 0.12f),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+            )
+
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.SpaceBetween
@@ -1320,7 +2048,8 @@ private fun WorkspaceCard(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(themeColor.copy(alpha = 0.15f)),
+                            .background(themeColor.copy(alpha = 0.18f))
+                            .border(1.dp, themeColor.copy(alpha = 0.3f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(text = workspace.iconEmoji, fontSize = 20.sp)
@@ -1353,7 +2082,7 @@ private fun WorkspaceCard(
                     Text(
                         text = "Open Space →",
                         style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         color = themeColor
                     )
                 }
@@ -1367,18 +2096,54 @@ private fun CreateWorkspaceCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "create_workspace_scale"
+    )
+    val isDark = isSystemInDarkTheme()
+    val primaryColor = MaterialTheme.colorScheme.primary
+
     Card(
         onClick = onClick,
-        modifier = modifier.height(130.dp),
+        interactionSource = interactionSource,
+        modifier = modifier
+            .height(130.dp)
+            .graphicsLayer(scaleX = scale, scaleY = scale)
+            .shadow(
+                elevation = if (isPressed) 1.dp else 4.dp,
+                shape = RoundedCornerShape(20.dp),
+                clip = false,
+                ambientColor = primaryColor.copy(alpha = 0.05f),
+                spotColor = primaryColor.copy(alpha = 0.1f)
+            ),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.25f else 0.4f),
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.1f else 0.2f)
+                        )
+                    )
+                )
                 .border(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = if (isDark) 0.05f else 0.2f),
+                            Color.White.copy(alpha = if (isDark) 0.02f else 0.08f)
+                        )
+                    ),
                     shape = RoundedCornerShape(20.dp)
                 ),
             contentAlignment = Alignment.Center
@@ -1390,15 +2155,15 @@ private fun CreateWorkspaceCard(
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    tint = primaryColor.copy(alpha = 0.8f),
                     modifier = Modifier.size(32.dp)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Create Space",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
                 )
             }
         }

@@ -12,5 +12,6 @@ data class PomodoroSessionEntity(
     val completedAtMillis: Long = System.currentTimeMillis(),
     val focusRating: Int = 0,
     val reflectionNote: String = "",
-    val distractionsCount: Int = 0
+    val distractionsCount: Int = 0,
+    val appExitsCount: Int = 0
 )

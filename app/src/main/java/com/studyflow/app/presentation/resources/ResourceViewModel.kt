@@ -27,6 +27,7 @@ class ResourceViewModel @Inject constructor(
     private var currentWorkspaceId: Long? = null
 
     private val _monthRange = MutableStateFlow(getMonthStartEnd(currentMonthCal))
+    private val _selectedCategory = MutableStateFlow("All")
     private val workspaceFlow = settingsRepository.getUserSettings()
         .map { it?.selectedWorkspaceId }
         .distinctUntilChanged()
@@ -38,7 +39,7 @@ class ResourceViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeResources() {
         viewModelScope.launch {
-            combine(_monthRange, workspaceFlow) { range, workspaceId ->
+            val dbFlow = combine(_monthRange, workspaceFlow) { range, workspaceId ->
                 currentWorkspaceId = workspaceId
                 Triple(range.first, range.second, workspaceId)
             }
@@ -55,26 +56,31 @@ class ResourceViewModel @Inject constructor(
                     Triple(list, total, catTotals)
                 }
             }
+
+            combine(dbFlow, _selectedCategory) { dbData, category ->
+                Pair(dbData, category)
+            }
             .catch { e ->
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.localizedMessage) }
             }
-            .collect { triple ->
-                val allResources = triple.first
-                val total = triple.second
-                val catTotals = triple.third
+            .collect { (dbData, category) ->
+                val allResources = dbData.first
+                val total = dbData.second
+                val catTotals = dbData.third
 
                 val formatter = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
                 val monthLabel = formatter.format(currentMonthCal.time)
 
                 _uiState.update { state ->
-                    val filteredResources = if (state.selectedCategory == "All") {
+                    val filteredResources = if (category == "All") {
                         allResources
                     } else {
-                        allResources.filter { it.category.equals(state.selectedCategory, ignoreCase = true) }
+                        allResources.filter { it.category.equals(category, ignoreCase = true) }
                     }
 
                     state.copy(
                         resources = filteredResources,
+                        selectedCategory = category,
                         totalAmount = total,
                         categoryTotals = catTotals,
                         monthLabel = monthLabel,
@@ -87,8 +93,7 @@ class ResourceViewModel @Inject constructor(
     }
 
     fun selectCategory(category: String) {
-        _uiState.update { it.copy(selectedCategory = category) }
-        triggerMonthRefresh()
+        _selectedCategory.value = category
     }
 
     fun nextMonth() {

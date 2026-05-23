@@ -6,6 +6,7 @@ import com.studyflow.app.data.local.entity.PomodoroSessionEntity
 import com.studyflow.app.data.local.entity.UserSettingsEntity
 import com.studyflow.app.data.repository.PomodoroRepository
 import com.studyflow.app.data.repository.SettingsRepository
+import com.studyflow.app.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -18,7 +19,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PomodoroViewModel @Inject constructor(
     private val pomodoroRepository: PomodoroRepository,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val taskRepository: TaskRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PomodoroUiState(isLoading = true))
@@ -28,8 +30,19 @@ class PomodoroViewModel @Inject constructor(
     private var currentWorkspaceId: Long? = null
     private var historyJob: Job? = null
 
+    private var tasksJob: Job? = null
+
     init {
         observeUserSettings()
+    }
+
+    private fun observeTasks(workspaceId: Long?) {
+        tasksJob?.cancel()
+        tasksJob = viewModelScope.launch {
+            taskRepository.getAllTasks(workspaceId).collect { tasks ->
+                _uiState.update { it.copy(tasks = tasks.filter { !it.isCompleted }) }
+            }
+        }
     }
 
     private fun observeUserSettings() {
@@ -40,6 +53,7 @@ class PomodoroViewModel @Inject constructor(
                 if (currentWorkspaceId != workspaceId || historyJob == null) {
                     currentWorkspaceId = workspaceId
                     observeHistory(workspaceId)
+                    observeTasks(workspaceId)
                 }
                 _uiState.update { state ->
                     val isFocus = state.mode == PomodoroMode.FOCUS
@@ -104,7 +118,8 @@ class PomodoroViewModel @Inject constructor(
             }
             state.copy(
                 secondsRemaining = duration * 60,
-                totalSeconds = duration * 60
+                totalSeconds = duration * 60,
+                appExitsCount = 0
             )
         }
     }
@@ -158,12 +173,14 @@ class PomodoroViewModel @Inject constructor(
                 workspaceId = currentWorkspaceId,
                 focusRating = rating,
                 reflectionNote = note.trim(),
-                distractionsCount = distractions
+                distractionsCount = distractions,
+                appExitsCount = state.appExitsCount
             )
             pomodoroRepository.insertSession(newSession)
             _uiState.update { it.copy(
                 showReflectionDialog = false,
-                taskLabel = ""
+                taskLabel = "",
+                appExitsCount = 0
             ) }
             transitionMode()
         }
@@ -197,8 +214,31 @@ class PomodoroViewModel @Inject constructor(
                 mode = nextMode,
                 sessionCount = nextCount,
                 secondsRemaining = nextDuration * 60,
-                totalSeconds = nextDuration * 60
+                totalSeconds = nextDuration * 60,
+                appExitsCount = 0
             )
+        }
+    }
+
+    fun incrementAppExits() {
+        if (_uiState.value.isRunning && _uiState.value.mode == PomodoroMode.FOCUS) {
+            _uiState.update { it.copy(appExitsCount = it.appExitsCount + 1) }
+        }
+    }
+
+    fun debugCompleteSession() {
+        timerJob?.cancel()
+        _uiState.update { it.copy(
+            mode = PomodoroMode.FOCUS,
+            secondsRemaining = 5,
+            isRunning = true
+        ) }
+        timerJob = viewModelScope.launch {
+            while (_uiState.value.secondsRemaining > 0) {
+                delay(1000)
+                _uiState.update { it.copy(secondsRemaining = it.secondsRemaining - 1) }
+            }
+            onTimerComplete()
         }
     }
 
