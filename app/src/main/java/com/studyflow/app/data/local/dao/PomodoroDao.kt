@@ -17,4 +17,7 @@ interface PomodoroDao {
 
     @Delete
     fun deleteSession(session: PomodoroSessionEntity): Int
+
+    @Query("SELECT * FROM pomodoro_sessions WHERE (:workspaceId IS NULL OR workspaceId = :workspaceId) ORDER BY completedAtMillis DESC")
+    fun getAllSessionsSuspended(workspaceId: Long?): List<PomodoroSessionEntity>
 }

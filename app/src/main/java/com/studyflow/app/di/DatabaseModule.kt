@@ -45,4 +45,7 @@ object DatabaseModule {
 
     @Provides
     fun provideReflectionDao(db: AppDatabase): ReflectionDao = db.reflectionDao()
+
+    @Provides
+    fun provideAIRecommendationDao(db: AppDatabase): AIRecommendationDao = db.aiRecommendationDao()
 }

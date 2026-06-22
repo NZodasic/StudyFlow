@@ -15,9 +15,10 @@ import com.studyflow.app.data.local.entity.*
         PomodoroSessionEntity::class,
         UserSettingsEntity::class,
         WorkspaceEntity::class,
-        ReflectionEntity::class
+        ReflectionEntity::class,
+        AIRecommendationEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -29,4 +30,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun settingsDao(): SettingsDao
     abstract fun workspaceDao(): WorkspaceDao
     abstract fun reflectionDao(): ReflectionDao
+    abstract fun aiRecommendationDao(): AIRecommendationDao
 }

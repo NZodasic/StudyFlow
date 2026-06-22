@@ -26,4 +26,7 @@ interface ReflectionDao {
 
     @Delete
     fun deleteReflection(reflection: ReflectionEntity): Int
+
+    @Query("SELECT * FROM reflections ORDER BY dateMillis DESC")
+    fun getAllReflectionsSuspended(): List<ReflectionEntity>
 }

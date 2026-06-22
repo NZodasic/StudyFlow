@@ -177,7 +177,14 @@ fun NavGraph(
         }
         composable(Screen.Insights.route) {
             InsightsScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToPomodoro = {
+                    navController.navigate(Screen.Pomodoro.route) {
+                        popUpTo(Screen.Dashboard.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
             )
         }
     }

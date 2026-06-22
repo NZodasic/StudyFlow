@@ -40,4 +40,7 @@ interface ResourceDao {
 
     @Query("DELETE FROM resources")
     fun deleteAllResources(): Int
+
+    @Query("SELECT * FROM resources WHERE (:workspaceId IS NULL OR workspaceId = :workspaceId) ORDER BY dateMillis DESC")
+    fun getAllResourcesSuspended(workspaceId: Long?): List<ResourceEntity>
 }

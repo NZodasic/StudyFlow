@@ -20,6 +20,15 @@ import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.animation.core.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import com.studyflow.app.data.local.entity.AIRecommendationEntity
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,14 +48,18 @@ import com.studyflow.app.ui.components.LoadingIndicator
 import com.studyflow.app.ui.theme.StudyFlowTheme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InsightsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToPomodoro: () -> Unit,
     viewModel: InsightsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showBreathingDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -80,17 +93,25 @@ fun InsightsScreen(
         } else {
             InsightsContent(
                 uiState = uiState,
+                onNavigateToPomodoro = onNavigateToPomodoro,
+                onShowBreathing = { showBreathingDialog = true },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
             )
         }
     }
+
+    if (showBreathingDialog) {
+        BreathingExerciseDialog(onDismiss = { showBreathingDialog = false })
+    }
 }
 
 @Composable
 private fun InsightsContent(
     uiState: InsightsUiState,
+    onNavigateToPomodoro: () -> Unit,
+    onShowBreathing: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
@@ -107,6 +128,47 @@ private fun InsightsContent(
         ) {
             uiState.studyDna?.let { dna ->
                 StudyDnaCard(profile = dna)
+            }
+        }
+
+        // ─── AI STUDY COACH SECTION ────────────────────────────────────────
+        Text(
+            text = "AI Study Coach Predictions 🤖",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.onBackground,
+            letterSpacing = 0.5.sp
+        )
+
+        if (uiState.aiRecommendations.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Your Coach is analyzing your patterns. Log sleep, caffeine, focus, and reflection to receive predictions.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            uiState.aiRecommendations.forEach { recommendation ->
+                AIRecommendationCard(
+                    recommendation = recommendation,
+                    onNavigateToPomodoro = onNavigateToPomodoro,
+                    onShowBreathing = onShowBreathing
+                )
             }
         }
 
@@ -796,8 +858,267 @@ private fun InsightsPreviewDark() {
                             "Keep your work desk brightly lit to prevent fatigue triggers"
                         )
                     )
-                )
+                ),
+                onNavigateToPomodoro = {},
+                onShowBreathing = {}
             )
         }
     }
+}
+
+// ─── AI RECOMMENDATION CARD ──────────────────────────────────────────────────
+
+@Composable
+private fun AIRecommendationCard(
+    recommendation: AIRecommendationEntity,
+    onNavigateToPomodoro: () -> Unit,
+    onShowBreathing: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+    val priorityColor = when (recommendation.priority) {
+        "high" -> Color(0xFFEF4444) // Red
+        "medium" -> Color(0xFFF59E0B) // Amber
+        else -> Color(0xFF10B981) // Emerald Green
+    }
+
+    val typeIcon = when (recommendation.type) {
+        "schedule" -> Icons.Default.TrendingUp
+        "break" -> Icons.Default.Timer
+        "focus" -> Icons.Default.Timer
+        "health" -> Icons.Default.SelfImprovement
+        else -> Icons.Default.Lightbulb
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = if (isDark) {
+                            listOf(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                            )
+                        } else {
+                            listOf(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            )
+                        }
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            priorityColor.copy(alpha = if (isDark) 0.5f else 0.35f),
+                            Color.White.copy(alpha = 0.05f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(20.dp)
+                )
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left Icon Column
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(priorityColor.copy(alpha = 0.15f))
+                    .border(1.dp, priorityColor.copy(alpha = 0.3f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = typeIcon,
+                    contentDescription = null,
+                    tint = priorityColor,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            // Main Text Column
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = recommendation.type.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = priorityColor,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = "Confidence: ${(recommendation.confidence * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = recommendation.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 20.sp
+                )
+
+                // Actions if any
+                if (recommendation.action != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = {
+                            if (recommendation.action == "START_POMODORO") {
+                                onNavigateToPomodoro()
+                            } else if (recommendation.action == "SHOW_BREATHING_EXERCISE") {
+                                onShowBreathing()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = priorityColor.copy(alpha = 0.12f),
+                            contentColor = priorityColor
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.height(36.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp)
+                    ) {
+                        val btnText = if (recommendation.action == "START_POMODORO") {
+                            "Start Focus Session ⏱"
+                        } else {
+                            "Breathing Guide 🧘"
+                        }
+                        Text(
+                            text = btnText,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─── BREATHING EXERCISE DIALOG ──────────────────────────────────────────────
+
+enum class BreathingDialogPhase {
+    INHALE, HOLD_IN, EXHALE, HOLD_OUT
+}
+
+@Composable
+fun BreathingExerciseDialog(
+    onDismiss: () -> Unit
+) {
+    var breathingPhase by remember { mutableStateOf(BreathingDialogPhase.INHALE) }
+    var animProgress by remember { mutableStateOf(0f) }
+
+    // Breathing phase timer cycle (16s total: 4s inhale, 4s hold, 4s exhale, 4s hold)
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            // Inhale: 4 seconds
+            breathingPhase = BreathingDialogPhase.INHALE
+            val inhaleStart = System.currentTimeMillis()
+            while (System.currentTimeMillis() - inhaleStart < 4000) {
+                animProgress = ((System.currentTimeMillis() - inhaleStart).toFloat() / 4000f).coerceIn(0f, 1f)
+                delay(16)
+            }
+            // Hold In: 4 seconds
+            breathingPhase = BreathingDialogPhase.HOLD_IN
+            animProgress = 1f
+            delay(4000)
+
+            // Exhale: 4 seconds
+            breathingPhase = BreathingDialogPhase.EXHALE
+            val exhaleStart = System.currentTimeMillis()
+            while (System.currentTimeMillis() - exhaleStart < 4000) {
+                animProgress = (1f - ((System.currentTimeMillis() - exhaleStart).toFloat() / 4000f)).coerceIn(0f, 1f)
+                delay(16)
+            }
+            // Hold Out: 4 seconds
+            breathingPhase = BreathingDialogPhase.HOLD_OUT
+            animProgress = 0f
+            delay(4000)
+        }
+    }
+
+    val phaseText = when (breathingPhase) {
+        BreathingDialogPhase.INHALE -> "Inhale..."
+        BreathingDialogPhase.HOLD_IN -> "Hold..."
+        BreathingDialogPhase.EXHALE -> "Exhale..."
+        BreathingDialogPhase.HOLD_OUT -> "Hold..."
+    }
+
+    val scale = 1.0f + (animProgress * 0.6f)
+    val alpha = 0.1f + (animProgress * 0.3f)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Box Breathing Guide 🧘",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(280.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Outer Breathing Halo
+                Box(
+                    modifier = Modifier
+                        .size(160.dp * scale)
+                        .background(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = alpha),
+                            shape = CircleShape
+                        )
+                )
+                // Inner Breathing Halo
+                Box(
+                    modifier = Modifier
+                        .size(120.dp * (1f + animProgress * 0.4f))
+                        .background(
+                            color = MaterialTheme.colorScheme.secondary.copy(alpha = alpha * 0.7f),
+                            shape = CircleShape
+                        )
+                )
+                
+                // Phase Text
+                Text(
+                    text = phaseText,
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp
+                    ),
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Done")
+            }
+        }
+    )
 }

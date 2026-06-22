@@ -7,6 +7,8 @@ import com.studyflow.app.data.repository.TaskRepository
 import com.studyflow.app.data.repository.PomodoroRepository
 import com.studyflow.app.data.repository.SettingsRepository
 import com.studyflow.app.data.repository.ResourceRepository
+import com.studyflow.app.data.local.entity.AIRecommendationEntity
+import com.studyflow.app.data.repository.AIRecommendationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,7 +50,8 @@ data class InsightsUiState(
     val correlations: List<InsightCorrelation> = emptyList(),
     val weeklyTasksCompleted: Int = 0,
     val weeklyFocusHours: Float = 0f,
-    val studyDna: StudyDnaProfile? = null
+    val studyDna: StudyDnaProfile? = null,
+    val aiRecommendations: List<AIRecommendationEntity> = emptyList()
 )
 
 @HiltViewModel
@@ -57,7 +60,8 @@ class InsightsViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val pomodoroRepository: PomodoroRepository,
     private val settingsRepository: SettingsRepository,
-    private val resourceRepository: ResourceRepository
+    private val resourceRepository: ResourceRepository,
+    private val aiRecommendationRepository: AIRecommendationRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(InsightsUiState(isLoading = true))
@@ -80,12 +84,20 @@ class InsightsViewModel @Inject constructor(
         dataJob = viewModelScope.launch {
             val weekStart = getStartOfWeekMillis()
 
+            // Run the AI Study Coach engine dynamically before observing flows
+            try {
+                aiRecommendationRepository.runStudyCoachEngine(workspaceId)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
             combine(
                 reflectionRepository.getAllReflections(),
                 taskRepository.getAllTasks(workspaceId),
                 pomodoroRepository.getAllSessions(workspaceId),
-                resourceRepository.getAllResources(workspaceId)
-            ) { reflections, tasks, sessions, resources ->
+                resourceRepository.getAllResources(workspaceId),
+                aiRecommendationRepository.getActiveRecommendations()
+            ) { reflections, tasks, sessions, resources, aiRecommendations ->
                 // Average stats
                 val avgEnergy = if (reflections.isNotEmpty()) reflections.map { it.energyLevel }.average().toFloat() else 0f
                 val avgProd = if (reflections.isNotEmpty()) reflections.map { it.productivityRating }.average().toFloat() else 0f
@@ -297,7 +309,8 @@ class InsightsViewModel @Inject constructor(
                     correlations = correlations,
                     weeklyTasksCompleted = weeklyCompletedTasks,
                     weeklyFocusHours = weeklyHours,
-                    studyDna = studyDna
+                    studyDna = studyDna,
+                    aiRecommendations = aiRecommendations
                 )
             }.collect { state ->
                 _uiState.value = state

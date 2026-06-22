@@ -101,62 +101,62 @@ class HabitRepositoryTest {
         return calendar.timeInMillis
     }
 
-    // Fake DAO Implementation
-    class FakeHabitDao : HabitDao {
-        val habits = mutableMapOf<Long, HabitEntity>()
-        val logs = mutableListOf<HabitLogEntity>()
+        // Fake DAO Implementation
+        class FakeHabitDao : HabitDao {
+            val habits = mutableMapOf<Long, HabitEntity>()
+            val logs = mutableListOf<HabitLogEntity>()
 
-        override fun getAllHabits(): Flow<List<HabitEntity>> = flowOf(habits.values.toList())
+            override fun getAllHabits(workspaceId: Long?): Flow<List<HabitEntity>> = flowOf(habits.values.toList())
 
-        override fun getHabitById(id: Long): Flow<HabitEntity?> = flowOf(habits[id])
+            override fun getHabitById(id: Long): Flow<HabitEntity?> = flowOf(habits[id])
 
-        override fun getLogsForHabit(habitId: Long, weekStart: Long): Flow<List<HabitLogEntity>> {
-            return flowOf(logs.filter { it.habitId == habitId && it.dateMillis >= weekStart })
+            override fun getLogsForHabit(habitId: Long, weekStart: Long): Flow<List<HabitLogEntity>> {
+                return flowOf(logs.filter { it.habitId == habitId && it.dateMillis >= weekStart })
+            }
+
+            override fun isLoggedToday(habitId: Long, todayStart: Long, todayEnd: Long): Flow<Boolean> {
+                return flowOf(isLoggedTodaySuspended(habitId, todayStart, todayEnd))
+            }
+
+            override fun isLoggedTodaySuspended(habitId: Long, todayStart: Long, todayEnd: Long): Boolean {
+                return logs.any { it.habitId == habitId && it.dateMillis >= todayStart && it.dateMillis <= todayEnd }
+            }
+
+            override fun insertHabit(habit: HabitEntity): Long {
+                val id = if (habit.id == 0L) (habits.size + 1).toLong() else habit.id
+                val newHabit = habit.copy(id = id)
+                habits[id] = newHabit
+                return id
+            }
+
+            override fun updateHabit(habit: HabitEntity): Int {
+                habits[habit.id] = habit
+                return 1
+            }
+
+            override fun deleteHabit(habit: HabitEntity): Int {
+                habits.remove(habit.id)
+                return 1
+            }
+
+            override fun insertLog(log: HabitLogEntity): Long {
+                val id = (logs.size + 1).toLong()
+                logs.add(log.copy(id = id))
+                return id
+            }
+
+            override fun deleteLogForToday(habitId: Long, todayStart: Long, todayEnd: Long): Int {
+                val beforeSize = logs.size
+                logs.removeAll { it.habitId == habitId && it.dateMillis >= todayStart && it.dateMillis <= todayEnd }
+                return beforeSize - logs.size
+            }
+
+            override fun getAllLogsForHabit(habitId: Long): List<Long> {
+                return logs.filter { it.habitId == habitId }.map { it.dateMillis }
+            }
+
+            override fun getLogsForPeriod(start: Long, end: Long, workspaceId: Long?): Flow<List<HabitLogEntity>> {
+                return flowOf(logs.filter { it.dateMillis in start..end })
+            }
         }
-
-        override fun isLoggedToday(habitId: Long, todayStart: Long, todayEnd: Long): Flow<Boolean> {
-            return flowOf(isLoggedTodaySuspended(habitId, todayStart, todayEnd))
-        }
-
-        override fun isLoggedTodaySuspended(habitId: Long, todayStart: Long, todayEnd: Long): Boolean {
-            return logs.any { it.habitId == habitId && it.dateMillis >= todayStart && it.dateMillis <= todayEnd }
-        }
-
-        override fun insertHabit(habit: HabitEntity): Long {
-            val id = if (habit.id == 0L) (habits.size + 1).toLong() else habit.id
-            val newHabit = habit.copy(id = id)
-            habits[id] = newHabit
-            return id
-        }
-
-        override fun updateHabit(habit: HabitEntity): Int {
-            habits[habit.id] = habit
-            return 1
-        }
-
-        override fun deleteHabit(habit: HabitEntity): Int {
-            habits.remove(habit.id)
-            return 1
-        }
-
-        override fun insertLog(log: HabitLogEntity): Long {
-            val id = (logs.size + 1).toLong()
-            logs.add(log.copy(id = id))
-            return id
-        }
-
-        override fun deleteLogForToday(habitId: Long, todayStart: Long, todayEnd: Long): Int {
-            val beforeSize = logs.size
-            logs.removeAll { it.habitId == habitId && it.dateMillis >= todayStart && it.dateMillis <= todayEnd }
-            return beforeSize - logs.size
-        }
-
-        override fun getAllLogsForHabit(habitId: Long): List<Long> {
-            return logs.filter { it.habitId == habitId }.map { it.dateMillis }
-        }
-
-        override fun getLogsForPeriod(start: Long, end: Long): Flow<List<HabitLogEntity>> {
-            return flowOf(logs.filter { it.dateMillis in start..end })
-        }
-    }
 }
